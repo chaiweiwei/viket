@@ -1,0 +1,427 @@
+//
+//  ALDAsyncLoadImage.m
+//  npf
+//  图片异步加载工具
+//  Created by yulong chen on 12-5-3.
+//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//
+
+#import "ALDAsyncDownloader.h"
+#import <CommonCrypto/CommonDigest.h>
+#import "NetworkTest.h"
+#import "ALDUtils.h"
+
+#define kMaxFailUrl 10
+
+@implementation ALDAsyncDownloader
+@synthesize cachePath=_cachePath;
+
+-(NSString *) makeCachePath{
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString *basePath = ([paths count] > 0) ? [paths objectAtIndex:0] : nil;
+    if (basePath) {
+        return [basePath stringByAppendingPathComponent:@"ImagesCache"];
+    }
+    paths = NSSearchPathForDirectoriesInDomains(NSCachesDirectory,NSUserDomainMask, YES);
+    NSString *documentDirectory = [paths objectAtIndex:0];
+    return [documentDirectory stringByAppendingPathComponent:@"ImagesCache"];
+}
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        _fileManager = [[NSFileManager alloc] init];
+        _delegates=[[NSMutableArray alloc] init];
+        _requests=[[NSMutableArray alloc] init];
+        _requestForURL=[[NSMutableDictionary alloc] init];
+        
+        self.cachePath=[self makeCachePath];
+        BOOL isDirectory;
+        NSString *path=[NSString stringWithFormat:@"%@/",_cachePath];
+        if (![_fileManager fileExistsAtPath:_cachePath isDirectory:&isDirectory]) {
+            NSError *error=nil;
+            BOOL res=[_fileManager createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:&error];
+            if (!res) {
+                if (error) {
+                    NSLog(@"创建目录失败,error:%@, path:%@",error,path);
+                }else {
+                    NSLog(@"创建目录失败");
+                }
+            }
+        }else if (!isDirectory) {
+            NSError *error=nil;
+            [_fileManager removeItemAtPath:_cachePath error:&error];
+            if (error) {
+                NSLog(@"删除文件%@失败",_cachePath);
+            }
+            BOOL res=[_fileManager createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:&error];
+            if (!res) {
+                if (error) {
+                    NSLog(@"创建目录失败,error:%@, path:%@",error,path);
+                }else {
+                    NSLog(@"创建目录失败");
+                }
+            }
+        }else {
+            //NSLog(@"目录已存在,isDirectory:%d",isDirectory);
+        }
+        
+        networkQueue = [[ASINetworkQueue alloc] init];
+        [networkQueue reset];
+        //[networkQueue setDownloadProgressDelegate:progressIndicator];
+        //[networkQueue setRequestDidStartSelector:@selector(requestStarted:)];
+        //[networkQueue setRequestDidReceiveResponseHeadersSelector:@selector(request:didReceiveResponseHeaders:)];
+        [networkQueue setRequestDidFinishSelector:@selector(requestFinished:)];
+        [networkQueue setRequestDidFailSelector:@selector(requestFailed:)];
+        [networkQueue setShouldCancelAllRequestsOnFailure:NO ]; //设置为NO当取消了一个请求，不至于取消所有的请求
+        [networkQueue setMaxConcurrentOperationCount:5]; //最大同时执行任务数
+        //[networkQueue setShowAccurateProgress:[accurateProgress isOn]]; //设置精确控制进度
+        [networkQueue setDelegate:self];
+        [networkQueue go];
+    }
+    //    NSLog(@"init ALDAsyncLoadImage****");
+    return self;
+}
+
+static ALDAsyncDownloader *downloader;
+
++(id) asyncDownloader{
+    if (!downloader) {
+        downloader=[[self alloc] init];
+    }
+    return downloader;
+}
+
++(void) releaseDownloader{
+    ALDRelease(downloader);
+    downloader=nil;
+}
+
+static inline char hexChar(unsigned char c) {
+    return c < 10 ? '0' + c : 'a' + c - 10;
+}
+
+static inline void hexString(unsigned char *from, char *to, NSUInteger length) {
+    for (NSUInteger i = 0; i < length; ++i) {
+        unsigned char c = from[i];
+        unsigned char cHigh = c >> 4;
+        unsigned char cLow = c & 0xf;
+        to[2 * i] = hexChar(cHigh);
+        to[2 * i + 1] = hexChar(cLow);
+    }
+    to[2 * length] = '\0';
+}
+
+static NSString * strToHex(const char *string) {
+    static const NSUInteger LENGTH = 20;
+    unsigned char result[LENGTH];
+    CC_SHA1(string, (CC_LONG)strlen(string), result);
+    
+    char hexResult[2 * LENGTH + 1];
+    hexString(result, hexResult, LENGTH);
+    
+    return [NSString stringWithUTF8String:hexResult];
+}
+
+-(NSString*) getFileExt:(NSString*) url{
+    if (!url) {
+        return nil;
+    }
+    NSArray *temp=[url componentsSeparatedByString:@"/"];
+    if (temp && temp.count>0) {
+        NSString *str=[temp objectAtIndex:(temp.count-1)];
+        temp=[str componentsSeparatedByString:@"."];
+        if (temp.count>1) {
+            return [temp objectAtIndex:(temp.count-1)];
+        }
+    }
+    return nil;
+}
+
+-(float) captureProcess:(ASIHTTPRequest*) request{
+    unsigned long long progress=[request totalBytesRead]+[request partialDownloadSize];
+    unsigned long long total=[request contentLength]+[request partialDownloadSize];
+    float progressAmount = (float)((progress*1.0)/(total*1.0));
+    return progressAmount;
+}
+
+/**
+ * 将url转换成本地路径
+ */
++(NSString *) convertUrlToPath:(NSString *)url{
+    NSString *filename = strToHex([url UTF8String]);
+    return [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
+}
+
+- (void)cancelForDelegate:(id<AsyncDownloaderDelegate>)delegate
+{
+    if (!delegate) {
+        return ;
+    }
+    NSUInteger idx = [_delegates indexOfObjectIdenticalTo:delegate];
+    
+    if (idx == NSNotFound)
+    {
+        return;
+    }
+    ASIHTTPRequest *request = ALDReturnRetained([_requests objectAtIndex:idx]);
+    
+    [_delegates removeObjectAtIndex:idx];
+    [_requests removeObjectAtIndex:idx];
+    
+    if (![_requests containsObject:request]) //如果没有该url的请求，则取消该请求
+    {
+        // No more delegate are waiting for this download, cancel it
+        NSURL *url=request.url;
+        [request cancel];
+        [_requestForURL removeObjectForKey:url];
+    }
+    
+    ALDRelease(request);
+}
+
+/**
+ *  从网络加载
+ **/
+-(void) loadFromNet:(NSString*)path url:(NSURL*) url delegate:(id<AsyncDownloaderDelegate>) delegate{
+    // Share the same request for identical URLs so we don't download the same URL several times
+//    NSLog(@"download url:%@",url);
+    ASIHTTPRequest *request = [_requestForURL objectForKey:url];
+    if (!request)
+    {
+        request = [ASIHTTPRequest requestWithURL:url];
+        [request setDownloadDestinationPath:path];
+        [request setShouldAttemptPersistentConnection:NO]; //设置是否重用链接
+        [request setTimeOutSeconds:20]; //设置超时时间，单位秒
+        [request setNumberOfTimesToRetryOnTimeout:0]; //设置请求超时时，设置重试的次数
+        NSString *filename = strToHex([url.absoluteString UTF8String]);
+        filename=[filename stringByAppendingString:@".temp"];
+        //设置缓存存放路径
+        NSString *tempPath = [_cachePath stringByAppendingPathComponent:filename];
+        [request setTemporaryFileDownloadPath:tempPath];
+        [request setAllowResumeForFileDownloads:YES]; //断点续传
+        [request setShouldContinueWhenAppEntersBackground:YES];  //当应用后台运行时仍然请求数据
+        [request setSecondsToCache:60*60*24*30]; // 缓存30 天
+        [request setCacheStoragePolicy:ASICachePermanentlyCacheStoragePolicy];
+        [request setCachePolicy:ASIAskServerIfModifiedWhenStaleCachePolicy|ASIFallbackToCacheIfLoadFailsCachePolicy]; //优先使用缓存
+        if ([delegate respondsToSelector:@selector(setProgress:)]) {
+            [request setDownloadProgressDelegate:delegate]; //设置进度状态显示
+            [request setShowAccurateProgress:YES];
+            [networkQueue setShowAccurateProgress:YES];
+        }
+        [networkQueue addOperation:request];
+        [_requestForURL setObject:request forKey:url];
+    }
+    
+    if (delegate) {
+        [_delegates addObject:delegate];
+    }else{
+        [_delegates addObject:[NSNull null]];
+    }
+    [_requests addObject:request];
+}
+
+/**
+ * 数据下载，优先使用缓存
+ * @param url 下载地址url
+ * @param delegate 异步加载委托实现
+ * @return 返回下载状态，详见DownloadState
+ */
+-(DownloadState) downloadWithUrl:(NSURL *) url delegate:(id<AsyncDownloaderDelegate>) delegate{
+//    [self cancelForDelegate:delegate]; //取消先前的委托
+    if (!url)
+    {
+        NSError *error=nil;
+        NSString *urlStr=@"";
+        error=[NSError errorWithDomain:@"url preload failed!" code:ASIMimeTypeError userInfo:[NSDictionary dictionaryWithObjectsAndKeys:@"The image url is a bad address.",NSLocalizedDescriptionKey,urlStr,NSURLErrorKey,nil]];
+        if ([delegate respondsToSelector:@selector(request:downloadedFailed:)]) {
+            [delegate request:nil downloadedFailed:error];
+        }
+        return DownloadStateWithFailed;
+    }
+    
+    NSString *filename = strToHex([url.absoluteString UTF8String]);
+    //设置缓存存放路径
+    NSString *path = [_cachePath stringByAppendingPathComponent:filename];
+    NSString *ext=[self getFileExt:url.absoluteString];
+    if (ext) {
+        path=[path stringByAppendingFormat:@".%@",ext];
+    }
+
+    ASIHTTPRequest *request = [_requestForURL objectForKey:url];
+    if (request) {
+        if (delegate) {
+            [_delegates addObject:delegate];
+            BOOL needProgress=YES;
+            if ([delegate respondsToSelector:@selector(setProgress:)]){
+                float progress=[self captureProcess:request];
+                [delegate setProgress:progress];
+            }else{
+                needProgress=NO;
+            }
+            if (needProgress && ![request downloadProgressDelegate]) {
+                [request setDownloadProgressDelegate:delegate]; //设置进度状态显示
+                [request setShowAccurateProgress:YES];
+                [networkQueue setShowAccurateProgress:YES];
+            }else{
+                [_requests addObject:request];
+                return DownloadStateWithLoading;
+            }
+        }else{
+            [_delegates addObject:[NSNull null]];
+        }
+        [_requests addObject:request];
+        return DownloadStateWithStart;
+    }else if ([_fileManager fileExistsAtPath:path]){
+        if ([delegate respondsToSelector:@selector(request:downloadedFinish:)]) {
+            [delegate request:[ASIHTTPRequest requestWithURL:url] downloadedFinish:path];
+        }
+        return DownloadStateWithDone;
+    }else if([NetworkTest connectedToNetwork]){
+        [self loadFromNet:path url:url delegate:delegate];
+        return DownloadStateWithStart;
+    }else {
+        if ([delegate respondsToSelector:@selector(request:downloadedFailed:)]) {
+            NSError *error=nil;
+            error=[NSError errorWithDomain:@"NetDidNotConnected" code:ASIConnectionFailureErrorType userInfo:[NSDictionary dictionaryWithObjectsAndKeys:@"Failed to get net connect",NSLocalizedDescriptionKey,url,NSURLErrorKey,nil]];
+            [delegate request:nil downloadedFailed:error];
+        }
+        return DownloadStateWithFailed;
+    }
+}
+
+/**
+ * 当前请求是否有缓存
+ * @param url 请求url
+ * @return 如果有缓存，则直接返回该缓存文件路径
+ **/
+-(NSString*) hasCachedForUrl:(NSURL*) url{
+    if (!url) {
+        return nil;
+    }
+    
+    NSString *filename = strToHex([url.absoluteString UTF8String]);
+    //设置缓存存放路径
+    NSString *path = [_cachePath stringByAppendingPathComponent:filename];
+    /*NSString *ext=[self getFileExt:url.absoluteString];
+    if (ext) {
+        path=[path stringByAppendingFormat:@".%@",ext];
+    }*/
+    if ([_fileManager fileExistsAtPath:path]){
+        return path;
+    }
+    return nil;
+}
+
+/**
+ * 当前请求是否有缓存
+ * @param url 请求url
+ * @return 如果有缓存，则直接返回该缓存文件路径(有后缀名)
+ **/
+-(NSString*) getCachedForUrlPath:(NSURL*) url{
+    if (!url) {
+        return nil;
+    }
+    
+    NSString *filename = strToHex([url.absoluteString UTF8String]);
+    //设置缓存存放路径
+    NSString *path = [_cachePath stringByAppendingPathComponent:filename];
+    NSString *ext=[self getFileExt:url.absoluteString];
+    if (ext) {
+        path=[path stringByAppendingFormat:@".%@",ext];
+    }
+    if ([_fileManager fileExistsAtPath:path]){
+        return path;
+    }
+    return nil;
+}
+/**
+ * 当前请求是否有缓存
+ * @param url 请求url
+ * @return 如果有缓存，则直接返回该缓存文件路径(有后缀名)
+ **/
+-(NSString*) getCachedForPath:(NSURL*) url{
+    if (!url) {
+        return nil;
+    }
+    
+    NSString *filename = strToHex([url.absoluteString UTF8String]);
+    //设置缓存存放路径
+    NSString *path = [_cachePath stringByAppendingPathComponent:filename];
+    NSString *ext=[self getFileExt:url.absoluteString];
+    if (ext) {
+        path=[path stringByAppendingFormat:@".%@",ext];
+    }
+    return path;
+}
+- (void)requestFinished:(ASIHTTPRequest *)request{
+    ALDRetain(request);
+    // Notify all the delegates with this downloader
+    NSString *path=[request downloadDestinationPath];
+    
+    for (NSInteger idx = [_requests count] - 1; idx >= 0; idx--)
+    {
+        ASIHTTPRequest *arequest = [_requests objectAtIndex:idx];
+        if (arequest == request)
+        {
+            id<AsyncDownloaderDelegate> delegate = [_delegates objectAtIndex:idx];
+            if ([delegate respondsToSelector:@selector(request:downloadedFinish:)]) {
+                [delegate request:arequest downloadedFinish:path];
+            }
+            [_requests removeObjectAtIndex:idx];
+            [_delegates removeObjectAtIndex:idx];
+        }
+    }
+    
+    // Release the request
+    [_requestForURL removeObjectForKey:request.url];
+    ALDRelease(request);
+}
+
+- (void)requestFailed:(ASIHTTPRequest *)request{
+    ALDRetain(request);
+    NSString *path=[request downloadDestinationPath];
+    if ([_fileManager fileExistsAtPath:path]){
+        [_fileManager removeItemAtPath:path error:nil];
+    }
+    NSError *error=request.error;
+    for (NSInteger idx = [_requests count] - 1; idx >= 0; idx--)
+    {
+        ASIHTTPRequest *arequests = [_requests objectAtIndex:idx];
+        if (arequests == request)
+        {
+            id<AsyncDownloaderDelegate> delegate = [_delegates objectAtIndex:idx];
+            if ([delegate respondsToSelector:@selector(request:downloadedFailed:)]) {
+                [delegate request:request downloadedFailed:error];
+            }
+            
+            [_requests removeObjectAtIndex:idx];
+            [_delegates removeObjectAtIndex:idx];
+        }
+    }
+    // The image can't be downloaded from this URL, mark the URL as failed so we won't try and fail again and again
+    //NSLocalizedDescription=The request timed out
+    if (error) {
+        NSLog(@"Image request error:%@",error);
+    }
+    // Release the request
+    [_requestForURL removeObjectForKey:request.url];
+    ALDRelease(request);
+}
+
+
+- (void)dealloc
+{
+    ALDRelease(_requestForURL);
+    ALDRelease(_requests);
+    ALDRelease(_delegates);
+    ALDRelease(_cachePath);
+    ALDRelease(_fileManager);
+    [networkQueue reset];
+	ALDRelease(networkQueue);
+#if ! __has_feature(objc_arc)
+    [super dealloc];
+#endif
+}
+@end

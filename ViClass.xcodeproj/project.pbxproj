@@ -252,10 +252,6 @@
 		3830BBAC1A7E3E62002D91F5 /* ProgressIndicator.m in Sources */ = {isa = PBXBuildFile; fileRef = 3830BBA31A7E3E62002D91F5 /* ProgressIndicator.m */; };
 		3830BBAD1A7E3E62002D91F5 /* StartView.m in Sources */ = {isa = PBXBuildFile; fileRef = 3830BBA51A7E3E62002D91F5 /* StartView.m */; };
 		3830BD541A7E4532002D91F5 /* ALDChoiseAlertView.m in Sources */ = {isa = PBXBuildFile; fileRef = 3830BD531A7E4532002D91F5 /* ALDChoiseAlertView.m */; };
-		3830BD611A7E4784002D91F5 /* ALDAsyncDownloader.m in Sources */ = {isa = PBXBuildFile; fileRef = 3830BD5A1A7E4784002D91F5 /* ALDAsyncDownloader.m */; };
-		3830BD621A7E4784002D91F5 /* ALDHttpClient.m in Sources */ = {isa = PBXBuildFile; fileRef = 3830BD5C1A7E4784002D91F5 /* ALDHttpClient.m */; };
-		3830BD631A7E4784002D91F5 /* MediaBean.m in Sources */ = {isa = PBXBuildFile; fileRef = 3830BD5E1A7E4784002D91F5 /* MediaBean.m */; };
-		3830BD641A7E4784002D91F5 /* MyURLCache.m in Sources */ = {isa = PBXBuildFile; fileRef = 3830BD601A7E4784002D91F5 /* MyURLCache.m */; };
 		3830BD671A7E4850002D91F5 /* NewsTabViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 3830BD661A7E4850002D91F5 /* NewsTabViewController.m */; };
 		3830BD6A1A7E5A87002D91F5 /* CategoryBean.m in Sources */ = {isa = PBXBuildFile; fileRef = 3830BD691A7E5A87002D91F5 /* CategoryBean.m */; };
 		3830BD6D1A7E6755002D91F5 /* OptionBean.m in Sources */ = {isa = PBXBuildFile; fileRef = 3830BD6C1A7E6755002D91F5 /* OptionBean.m */; };
@@ -432,6 +428,10 @@
 		38F7BEB91A8BB134002DD4C6 /* icon_arraw.png in Resources */ = {isa = PBXBuildFile; fileRef = 38F7BEB71A8BB134002DD4C6 /* icon_arraw.png */; };
 		38F7BEBA1A8BB134002DD4C6 /* icon_arraw@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 38F7BEB81A8BB134002DD4C6 /* icon_arraw@2x.png */; };
 		9AAC2C747ED5CBB9780313C0 /* libPods.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B88B41DA72882A44A87D3040 /* libPods.a */; };
+		FC982BC31AB7C472002749BC /* ALDAsyncDownloader.m in Sources */ = {isa = PBXBuildFile; fileRef = FC982BBC1AB7C472002749BC /* ALDAsyncDownloader.m */; };
+		FC982BC41AB7C472002749BC /* ALDHttpClient.m in Sources */ = {isa = PBXBuildFile; fileRef = FC982BBE1AB7C472002749BC /* ALDHttpClient.m */; };
+		FC982BC51AB7C472002749BC /* MediaBean.m in Sources */ = {isa = PBXBuildFile; fileRef = FC982BC01AB7C472002749BC /* MediaBean.m */; };
+		FC982BC61AB7C472002749BC /* MyURLCache.m in Sources */ = {isa = PBXBuildFile; fileRef = FC982BC21AB7C472002749BC /* MyURLCache.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -827,14 +827,6 @@
 		3830BBA51A7E3E62002D91F5 /* StartView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = StartView.m; sourceTree = "<group>"; };
 		3830BD521A7E4532002D91F5 /* ALDChoiseAlertView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ALDChoiseAlertView.h; sourceTree = "<group>"; };
 		3830BD531A7E4532002D91F5 /* ALDChoiseAlertView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ALDChoiseAlertView.m; sourceTree = "<group>"; };
-		3830BD591A7E4784002D91F5 /* ALDAsyncDownloader.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ALDAsyncDownloader.h; sourceTree = "<group>"; };
-		3830BD5A1A7E4784002D91F5 /* ALDAsyncDownloader.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ALDAsyncDownloader.m; sourceTree = "<group>"; };
-		3830BD5B1A7E4784002D91F5 /* ALDHttpClient.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ALDHttpClient.h; sourceTree = "<group>"; };
-		3830BD5C1A7E4784002D91F5 /* ALDHttpClient.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ALDHttpClient.m; sourceTree = "<group>"; };
-		3830BD5D1A7E4784002D91F5 /* MediaBean.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MediaBean.h; sourceTree = "<group>"; };
-		3830BD5E1A7E4784002D91F5 /* MediaBean.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MediaBean.m; sourceTree = "<group>"; };
-		3830BD5F1A7E4784002D91F5 /* MyURLCache.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MyURLCache.h; sourceTree = "<group>"; };
-		3830BD601A7E4784002D91F5 /* MyURLCache.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MyURLCache.m; sourceTree = "<group>"; };
 		3830BD651A7E4850002D91F5 /* NewsTabViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NewsTabViewController.h; sourceTree = "<group>"; };
 		3830BD661A7E4850002D91F5 /* NewsTabViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NewsTabViewController.m; sourceTree = "<group>"; };
 		3830BD681A7E5A87002D91F5 /* CategoryBean.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CategoryBean.h; sourceTree = "<group>"; };
@@ -1052,6 +1044,14 @@
 		6A8D8168DDC7DF18D3843F03 /* Pods.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = Pods.release.xcconfig; path = "Pods/Target Support Files/Pods/Pods.release.xcconfig"; sourceTree = "<group>"; };
 		6DB1C20AEFEA02FF6E46ED3B /* Pods.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = Pods.debug.xcconfig; path = "Pods/Target Support Files/Pods/Pods.debug.xcconfig"; sourceTree = "<group>"; };
 		B88B41DA72882A44A87D3040 /* libPods.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libPods.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		FC982BBB1AB7C472002749BC /* ALDAsyncDownloader.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ALDAsyncDownloader.h; sourceTree = "<group>"; };
+		FC982BBC1AB7C472002749BC /* ALDAsyncDownloader.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ALDAsyncDownloader.m; sourceTree = "<group>"; };
+		FC982BBD1AB7C472002749BC /* ALDHttpClient.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ALDHttpClient.h; sourceTree = "<group>"; };
+		FC982BBE1AB7C472002749BC /* ALDHttpClient.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ALDHttpClient.m; sourceTree = "<group>"; };
+		FC982BBF1AB7C472002749BC /* MediaBean.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MediaBean.h; sourceTree = "<group>"; };
+		FC982BC01AB7C472002749BC /* MediaBean.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MediaBean.m; sourceTree = "<group>"; };
+		FC982BC11AB7C472002749BC /* MyURLCache.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MyURLCache.h; sourceTree = "<group>"; };
+		FC982BC21AB7C472002749BC /* MyURLCache.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MyURLCache.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1206,7 +1206,7 @@
 		3830B72E1A7E2FB3002D91F5 /* normal */ = {
 			isa = PBXGroup;
 			children = (
-				3830BD581A7E4784002D91F5 /* net */,
+				FC982BBA1AB7C472002749BC /* net */,
 				3830B9C21A7E332F002D91F5 /* ALDDataChangedDelegate.h */,
 				3830B9C31A7E332F002D91F5 /* KGModal.h */,
 				3830B9C41A7E332F002D91F5 /* KGModal.m */,
@@ -1857,22 +1857,6 @@
 			path = BaseView;
 			sourceTree = "<group>";
 		};
-		3830BD581A7E4784002D91F5 /* net */ = {
-			isa = PBXGroup;
-			children = (
-				3830BD591A7E4784002D91F5 /* ALDAsyncDownloader.h */,
-				3830BD5A1A7E4784002D91F5 /* ALDAsyncDownloader.m */,
-				3830BD5B1A7E4784002D91F5 /* ALDHttpClient.h */,
-				3830BD5C1A7E4784002D91F5 /* ALDHttpClient.m */,
-				3830BD5D1A7E4784002D91F5 /* MediaBean.h */,
-				3830BD5E1A7E4784002D91F5 /* MediaBean.m */,
-				3830BD5F1A7E4784002D91F5 /* MyURLCache.h */,
-				3830BD601A7E4784002D91F5 /* MyURLCache.m */,
-			);
-			name = net;
-			path = ../../../alidao/common/net;
-			sourceTree = "<group>";
-		};
 		38534B281A9E27A800AA9CBD /* Default */ = {
 			isa = PBXGroup;
 			children = (
@@ -2256,6 +2240,21 @@
 			name = Pods;
 			sourceTree = "<group>";
 		};
+		FC982BBA1AB7C472002749BC /* net */ = {
+			isa = PBXGroup;
+			children = (
+				FC982BBB1AB7C472002749BC /* ALDAsyncDownloader.h */,
+				FC982BBC1AB7C472002749BC /* ALDAsyncDownloader.m */,
+				FC982BBD1AB7C472002749BC /* ALDHttpClient.h */,
+				FC982BBE1AB7C472002749BC /* ALDHttpClient.m */,
+				FC982BBF1AB7C472002749BC /* MediaBean.h */,
+				FC982BC01AB7C472002749BC /* MediaBean.m */,
+				FC982BC11AB7C472002749BC /* MyURLCache.h */,
+				FC982BC21AB7C472002749BC /* MyURLCache.m */,
+			);
+			path = net;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -2592,7 +2591,6 @@
 				3830B9E71A7E332F002D91F5 /* MJRefreshBaseView.m in Sources */,
 				3830B9F01A7E332F002D91F5 /* PYMethod.m in Sources */,
 				38F1C0EA1A9DF41400E4C8AC /* NewCheckViewController.m in Sources */,
-				3830BD621A7E4784002D91F5 /* ALDHttpClient.m in Sources */,
 				3830B9AA1A7E330C002D91F5 /* MainViewController.m in Sources */,
 				3830BB811A7E3D85002D91F5 /* BasicsRegisterViewController.m in Sources */,
 				3830BBAD1A7E3E62002D91F5 /* StartView.m in Sources */,
@@ -2613,6 +2611,7 @@
 				3830BB511A7E3D85002D91F5 /* UserInfoBean.m in Sources */,
 				3830B9EB1A7E332F002D91F5 /* UIScrollView+MJExtension.m in Sources */,
 				38F7BEAB1A8B9C62002DD4C6 /* TimeViewController.m in Sources */,
+				FC982BC51AB7C472002749BC /* MediaBean.m in Sources */,
 				3830B9B61A7E330C002D91F5 /* PwdViewController.m in Sources */,
 				3830B9ED1A7E332F002D91F5 /* UIView+MJExtension.m in Sources */,
 				386D6A6A1A7F723C001EC61E /* AnswerBean.m in Sources */,
@@ -2643,16 +2642,15 @@
 				3830BD6D1A7E6755002D91F5 /* OptionBean.m in Sources */,
 				3830B9AB1A7E330C002D91F5 /* PlayViewController.m in Sources */,
 				3830BD541A7E4532002D91F5 /* ALDChoiseAlertView.m in Sources */,
-				3830BD611A7E4784002D91F5 /* ALDAsyncDownloader.m in Sources */,
 				3830B9B41A7E330C002D91F5 /* MyInfomationViewController.m in Sources */,
 				3830BB761A7E3D85002D91F5 /* BaseBindUserViewController.m in Sources */,
 				3830B9B71A7E330C002D91F5 /* CheckoutViewController.m in Sources */,
 				3830B8DB1A7E32F5002D91F5 /* CustomBean.m in Sources */,
+				FC982BC31AB7C472002749BC /* ALDAsyncDownloader.m in Sources */,
 				3830B7551A7E303B002D91F5 /* NSDictionaryAdditions.m in Sources */,
 				384E07A81A80FABE00FFF068 /* BoothBean.m in Sources */,
 				3830B9BA1A7E330C002D91F5 /* CommentViewController.m in Sources */,
 				3830BB5B1A7E3D85002D91F5 /* BaseViewController.m in Sources */,
-				3830BD641A7E4784002D91F5 /* MyURLCache.m in Sources */,
 				3830B79F1A7E3092002D91F5 /* SheetActionView.m in Sources */,
 				3830B7A61A7E3092002D91F5 /* WaitingView.m in Sources */,
 				3830B9EA1A7E332F002D91F5 /* MJRefreshHeaderView.m in Sources */,
@@ -2689,7 +2687,6 @@
 				3830B7951A7E3092002D91F5 /* ALDImageView.m in Sources */,
 				3830B9A91A7E330C002D91F5 /* ClassListViewController.m in Sources */,
 				3830B9BC1A7E330C002D91F5 /* InfoViewController.m in Sources */,
-				3830BD631A7E4784002D91F5 /* MediaBean.m in Sources */,
 				3830B7971A7E3092002D91F5 /* ALDLetterView.m in Sources */,
 				3830BB7C1A7E3D85002D91F5 /* BasicsLoginView.m in Sources */,
 				3830BB4A1A7E3D85002D91F5 /* HostBean.m in Sources */,
@@ -2700,6 +2697,7 @@
 				3830BB5E1A7E3D85002D91F5 /* GrayPageControl.m in Sources */,
 				3830BBAC1A7E3E62002D91F5 /* ProgressIndicator.m in Sources */,
 				386D6A6D1A7F72EC001EC61E /* ScoreBean.m in Sources */,
+				FC982BC41AB7C472002749BC /* ALDHttpClient.m in Sources */,
 				3830B7A11A7E3092002D91F5 /* UIGlossyButton.m in Sources */,
 				3830BB451A7E3D85002D91F5 /* AttachmentBean.m in Sources */,
 				384E079D1A80BEA100FFF068 /* MyInfoViewController.m in Sources */,
@@ -2718,6 +2716,7 @@
 				3830B74E1A7E303B002D91F5 /* ALDAsyncLoadImage.m in Sources */,
 				3830BB4F1A7E3D85002D91F5 /* UserBean.m in Sources */,
 				3830BB421A7E3D85002D91F5 /* ActivityBean.m in Sources */,
+				FC982BC61AB7C472002749BC /* MyURLCache.m in Sources */,
 				38B399231A7E2EA2003C8C3E /* main.m in Sources */,
 				3830B9C11A7E330C002D91F5 /* TheTopViewController.m in Sources */,
 				3830B8DA1A7E32F5002D91F5 /* ChapterBean.m in Sources */,
