@@ -1,0 +1,27 @@
+//
+//  ChatBean.h
+//  OpenApi
+//  聊天内容bean
+//  Created by yulong chen on 13-1-18.
+//  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+@interface ChatBean : NSObject
+/** 聊天id **/
+@property (nonatomic) long chatId;
+/** 发送者用户id **/
+@property (nonatomic) long fromUid;
+/** 名称 **/
+@property (retain,nonatomic) NSString *name;
+/** 头像url **/
+@property (retain,nonatomic) NSString *avator;
+/** 内容 **/
+@property (retain,nonatomic) NSString *content;
+/** 发布时间 **/
+@property (retain,nonatomic) NSString *createDate;
+/** 置顶标志,1：置顶 **/
+@property (nonatomic) int topFlag;
+
+@end

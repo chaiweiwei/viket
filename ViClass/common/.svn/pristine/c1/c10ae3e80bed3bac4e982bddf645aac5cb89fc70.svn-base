@@ -1,0 +1,40 @@
+//
+//  QQAuthorize.h
+//  OpenApi
+//
+//  Created by yulong chen on 13-1-16.
+//  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import "WBAuthorize.h"
+
+@interface QQAuthorize : NSObject <WBAuthorizeWebViewDelegate, WBRequestDelegate> {
+    NSString    *appKey;
+    NSString    *appSecret;
+    
+    NSString    *redirectURI;
+    
+    WBRequest   *request;
+    
+    UIViewController *rootViewController;
+    
+    id<WBAuthorizeDelegate> delegate;
+}
+@property(nonatomic, retain) NSArray* permissions;
+@property (nonatomic, retain) NSString *appKey;
+@property (nonatomic, retain) NSString *appSecret;
+@property (nonatomic, retain) NSString *redirectURI;
+@property (nonatomic, retain) WBRequest *request;
+@property (nonatomic, assign) UIViewController *rootViewController;
+@property (nonatomic, retain) id<WBAuthorizeDelegate> delegate;
+@property (nonatomic) BOOL isChangeLogin;
+@property (nonatomic) NSInteger expireTimeval;
+@property (nonatomic, retain) NSString *accessToken;
+
+@property (nonatomic) BOOL isMode;
+
+- (id)initWithAppKey:(NSString *)theAppKey appSecret:(NSString *)theAppSecret;
+
+- (void)startAuthorize;
+@end

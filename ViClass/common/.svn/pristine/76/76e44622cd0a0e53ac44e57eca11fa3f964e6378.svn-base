@@ -1,0 +1,19 @@
+//
+//  MyTecentDelegate.h
+//  OpenApi
+//
+//  Created by yulong chen on 13-1-14.
+//  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import "TencentOAuth.h"
+#import "OpenApiUtils.h"
+
+@interface MyTecentDelegate : NSObject<TencentSessionDelegate>{
+    TencentOAuth *_tecentOAuth;
+}
+
+@property (assign,nonatomic) id<OpenApiDelegate> delegate;
+
+@end

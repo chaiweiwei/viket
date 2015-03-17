@@ -1,0 +1,53 @@
+//
+//  WeiBosendViewController.h
+//  hyt_ios
+//
+//  Created by aaa a on 12-4-20.
+//  Copyright (c) 2012年 qw. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import "MyWBEngineDelegate.h"
+#import "WBEngine.h"
+#import "ImageViewController.h"
+#import "OpenApiUtils.h"
+
+#define kFasong 1
+#define kZhuanfa 2
+#define kPinglun 3
+#define kFriendshipsCreate 4
+#define kViewUSerTimeline 5 //获取用户微博
+#define kMaxContentCount 280 //微博内容最大字符数(英文字符数，中文需除以2)
+
+@interface WeiBosendViewController : UIViewController<UIScrollViewDelegate,UITextViewDelegate,UITextFieldDelegate,OpenApiDelegate,UINavigationControllerDelegate,UIImagePickerControllerDelegate,ImageViewDelegate>{
+    //UITextView *textview;
+    //UITextView *textview2;
+    UIView *_myview;
+    UIView *_toolBar; //No retain
+    UIScrollView *_faceScrollView;
+    
+    UINavigationBar *_navBar; //NO Retain
+}
+
+@property (nonatomic) WeiboType weiboType;
+@property (retain,nonatomic) NSString *appkey;
+@property (retain,nonatomic) NSString *appSecret;
+@property (retain,nonatomic) NSString *redirectUrl;
+@property (assign,nonatomic) id<OpenApiDelegate> delegate;
+@property (nonatomic) BOOL isMode;
+
+@property (retain, nonatomic) WBEngine *engine;
+//初始化输入框内容
+@property (retain, nonatomic) NSString *content;
+/** 详情url **/
+@property (retain, nonatomic) NSString *detailUrl;
+//要发送的图片
+@property (retain, nonatomic) UIImage *picture;
+//微博专题
+@property (retain, nonatomic) NSString *toppics;
+//操作，1：发送，2：转发，3：评论
+@property (assign,nonatomic) int action; 
+//转发或评论的微博id
+@property (retain, nonatomic) NSString *weiboId;
+@property (retain, nonatomic)  UITextView *textview;
+@end

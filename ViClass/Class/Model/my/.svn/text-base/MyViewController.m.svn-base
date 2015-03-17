@@ -1,0 +1,198 @@
+//
+//  MyViewController.m
+//  WeTalk
+//
+//  Created by x-Alidao on 14/12/4.
+//  Copyright (c) 2014年 skk. All rights reserved.
+//
+
+#import "MyViewController.h"
+#import "ALDButton.h"
+#import "ALDImageView.h"
+#import "UIViewExt.h"
+#import "ALDUtils.h"
+
+@interface MyViewController ()
+
+@end
+
+@implementation MyViewController
+
+- (void)dealloc
+{
+    
+    
+#if ! __has_feature(objc_arc)
+    [super dealloc];
+#endif
+}
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    [self initData];
+    [self initUI];
+}
+-(void)initUI
+{
+    CGFloat viewWidth = self.view.width;
+    //背景
+    ALDImageView *bgImgView = [[ALDImageView alloc] initWithFrame:CGRectMake(0, 0, viewWidth, 32+3*2+80+32+49)];
+    bgImgView.defaultImage = [UIImage imageNamed:@"bg_my"];
+    bgImgView.imageUrl = @"";
+    [self.view addSubview:bgImgView];
+    
+    //头像
+    ALDImageView *icon = [[ALDImageView alloc] initWithFrame:CGRectMake(15, 32, 80, 80)];
+    icon.defaultImage = [UIImage imageNamed:@"pic_photo"];
+    icon.imageUrl = @"";
+    icon.layer.cornerRadius = 40;
+    icon.layer.borderWidth = 3;
+    icon.layer.borderColor = RGBACOLOR(169, 155, 114, 1).CGColor;
+    icon.autoResize=NO;
+    icon.fitImageToSize=NO;
+    icon.backgroundColor=[UIColor clearColor];
+    [bgImgView addSubview:icon];
+    
+    //标志
+    UIImageView *tag = [[UIImageView alloc] initWithFrame:CGRectMake(icon.right-25-3, icon.bottom-25-3, 25, 25)];
+    tag.image = [UIImage imageNamed:@"icon_male"];
+    if (viewWidth == 414) {
+        tag.frame = CGRectMake(icon.right-75/3.f-3, icon.bottom-75/3.f-3, 75/3.f, 75/3.f);
+        tag.image = [UIImage imageNamed:@"icon_male@3x"];
+    }
+    [bgImgView addSubview:tag];
+    
+    //名称
+    UILabel *name = [[UILabel alloc] initWithFrame:CGRectMake(icon.right+10, 52, viewWidth-111, 15)];
+    name.textColor = KWordWhiteColor;
+    name.font = k32pxBoldFont;
+    name.layer.shadowColor = KWordBlackColor.CGColor;
+    name.layer.shadowOffset = CGSizeMake(0, 1);
+    name.layer.shadowRadius = 1.0;
+    name.layer.shadowOpacity = 0.8;
+    name.text = @"耿文飞";
+    [bgImgView addSubview:name];
+    
+    //说说数量
+    UILabel *num = [[UILabel alloc] initWithFrame:CGRectMake(name.left, name.bottom+10, name.width, 15)];
+    num.backgroundColor = [UIColor clearColor];
+    num.textColor = KWordWhiteColor;
+    num.font = k30pxFont;
+    num.layer.shadowColor = KWordBlackColor.CGColor;
+    num.layer.shadowOffset = CGSizeMake(0, 1);
+    num.layer.shadowRadius = 1.0;
+    num.layer.shadowOpacity = 0.8;
+    num.text = @"100条说说";
+    [bgImgView addSubview:num];
+    
+    //播放数量
+    CGSize size = [ALDUtils captureTextSizeWithText:@"100条说说" textWidth:200 font:k30pxFont];
+    UILabel *playNum = [[UILabel alloc] initWithFrame:CGRectMake(num.left + size.width + 10, num.top, name.width, 15)];
+    playNum.backgroundColor = [UIColor clearColor];
+    playNum.textColor = KWordWhiteColor;
+    playNum.font = k30pxFont;
+    playNum.layer.shadowColor = KWordBlackColor.CGColor;
+    playNum.layer.shadowOffset = CGSizeMake(0, 1);
+    playNum.layer.shadowRadius = 1.0;
+    playNum.layer.shadowOpacity = 0.8;
+    playNum.text = @"23万播放";
+    [bgImgView addSubview:playNum];
+    
+    //我的微说
+    CGFloat btnWidth = (viewWidth-2)/3.0;
+    UIView *btnView = [self createView:CGRectMake(0, icon.bottom+32+6, btnWidth, 49) title:@"听过我" count:15];
+    [bgImgView addSubview:btnView];
+    
+    UIView *line = [self crecteLine:CGRectMake(btnView.right, btnView.top, 1, 49)];
+    [bgImgView addSubview:line];
+    
+    //听过我
+    btnView = [self createView:CGRectMake(line.right, icon.bottom+32+6, btnWidth, 49) title:@"我的微说" count:198];
+    [bgImgView addSubview:btnView];
+    
+    line = [self crecteLine:CGRectMake(btnView.right, btnView.top, 1, 49)];
+    [bgImgView addSubview:line];
+    
+    //听过我
+    btnView = [self createView:CGRectMake(line.right, icon.bottom+32+6, btnWidth, 49) title:@"我的点评" count:168];
+    [bgImgView addSubview:btnView];
+    
+    //灰色分割线
+    UIView *gayView = [self createGayView:CGRectMake(0, bgImgView.bottom, viewWidth, 15)];
+    [self.view addSubview:gayView];
+    
+    UIButton *btn = [self createCellView:CGRectMake(0, gayView.bottom, viewWidth, 44) title:@"我夫人挑战" tag:0x0010];
+    [self.view addSubview:btn];
+    
+    
+}
+-(void)initData
+{
+    [self TestData];
+}
+-(void)TestData
+{
+    
+}
+-(UIView *)createView:(CGRect)rect title:(NSString *)title count:(int)count
+{
+    UIView *view = [[UIView alloc] initWithFrame:rect];
+    view.backgroundColor = [UIColor clearColor];
+    view.userInteractionEnabled = YES;
+    
+    UIButton *btn = [UIButton buttonWithType:UIButtonTypeCustom];
+    btn.frame = (CGRect){CGPointZero,rect.size};
+    btn.backgroundColor = KWordBlackColor;
+    btn.alpha = 0.3;
+    [view addSubview:btn];
+    
+    CGSize size = [ALDUtils captureTextSizeWithText:title textWidth:200 font:k30pxFont];
+    UILabel *name = [[UILabel alloc] initWithFrame:CGRectMake((rect.size.width-size.width)/2.0, 9, size.width, 15)];
+    name.font = k30pxFont;
+    name.textColor = KWordWhiteColor;
+    name.text = title;
+    [view addSubview:name];
+    
+    size = [ALDUtils captureTextSizeWithText:[NSString stringWithFormat:@"%i",count] textWidth:200 font:k28pxFont];
+    UILabel *num = [[UILabel alloc] initWithFrame:CGRectMake((rect.size.width-size.width)/2.0, name.bottom+2, size.width,15)];
+    num.font = k28pxFont;
+    num.textColor = KWordWhiteColor;
+    num.text = [NSString stringWithFormat:@"%i",count];
+    [view addSubview:num];
+    
+    return view;
+}
+-(UIView *)crecteLine:(CGRect)rect
+{
+    UIView *line =[[UIView alloc] initWithFrame:rect];
+    line.backgroundColor = KWordWhiteColor;
+    line.alpha = 0.3;
+    return line;
+}
+-(UIView *)createGayView:(CGRect)Rect
+{
+    UIView *view = [[UIView alloc] initWithFrame:Rect];
+    view.backgroundColor = KTableViewBackgroundColor;
+    return view;
+}
+-(UIButton *)createCellView:(CGRect)rect title:(NSString *)title tag:(int)tag
+{
+    UIButton *btn = [[UIButton alloc] initWithFrame:rect];
+    btn.backgroundColor = KWordWhiteColor;
+    btn.tag = tag;
+    
+    UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(15, 0, rect.size.width-15, rect.size.height)];
+    label.backgroundColor = [UIColor clearColor];
+    label.textColor = RGBACOLOR(51, 51, 51, 1);
+    label.textAlignment = TEXT_ALIGN_CENTER;
+    label.font = k34pxFont;
+    
+    return btn;
+}
+- (void)didReceiveMemoryWarning {
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+
+@end

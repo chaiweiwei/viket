@@ -1,0 +1,26 @@
+//
+//  LoginCheckViewController.h
+//  OpenApi
+//
+//  Created by yulong chen on 12-12-29.
+//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+//#import "OpenApiLoginDelegate.h"
+#import "MyWBEngineDelegate.h"
+#import "TencentOAuth.h"
+#import "ALDHttpClient.h"
+#import "BaseViewController.h"
+#import "SinaWeibo.h"
+
+@interface LoginCheckViewController : BaseViewController<OpenApiDelegate,TencentSessionDelegate,ALDDataLoadStateDelegate,SinaWeiboDelegate, SinaWeiboRequestDelegate>{
+    NSInteger _apiType;
+}
+
+@property (retain,nonatomic) NSString *appSn;
+@property (retain,nonatomic) NSString *serverUrl;
+@property (retain,nonatomic) NSArray *apiItems;
+@property (assign,nonatomic) id<OpenApiDelegate> delegate;
+@property (retain,nonatomic) OpenApiUserBean *userBean;
+@end

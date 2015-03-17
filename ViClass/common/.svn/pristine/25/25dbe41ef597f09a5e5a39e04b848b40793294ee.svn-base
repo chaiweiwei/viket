@@ -1,0 +1,139 @@
+//
+//  WBEngine.m
+//  SinaWeiBoSDK
+//  Based on OAuth 2.0
+//
+//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+//  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+//  OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+//  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+//  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+//  WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+//  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+//  OTHER DEALINGS IN THE SOFTWARE.
+//
+//  Copyright 2011 Sina. All rights reserved.
+//
+
+#import "LinkedInEngine.h"
+#import "SFHFKeychainUtils.h"
+#import "WBSDKGlobal.h"
+#import "WBUtil.h"
+#import "TipsUtils.h"
+#import "LinkedInAuthorize.h"
+
+//#define kWBURLSchemePrefix              @"WB_"
+//
+//#define kWBKeychainServiceNameSuffix    @"_WeiBoServiceName"
+//#define kWBKeychainUserID               @"WeiBoUserID"
+//#define kWBKeychainScreenName           @"WeiboScreenName"
+//#define kWBKeychainAccessToken          @"WeiBoAccessToken"
+//#define kWBKeychainExpireTime           @"WeiBoExpireTime"
+//
+//#define kWBKeychainOpenKey           @"WeiBoOpenKey"
+
+#define kErrorDomain @"LinkedInEngine"
+
+@implementation LinkedInEngine
+
+#pragma mark - WBEngine Life Circle
+//不同的微博需要重载该方法，并设置keychainPrefix和weiboType的值
+-(id) init{
+    if (self=[super init]) {
+        self.keychainPrefix=@"LinkedIn";
+        self.weiboType=TypeLinkedIn;
+    }
+    return self;
+}
+
+#pragma mark Authorization
+- (void)logIn
+{
+    LinkedInAuthorize *auth = [[LinkedInAuthorize alloc] initWithAppKey:appKey appSecret:appSecret];
+    auth.isChangeLogin=self.isChangeLogin;
+    auth.hasBackBtn=self.hasBackBtn;
+    auth.isMode=self.isMode;
+    [auth setRootViewController:rootViewController];
+    [auth setDelegate:self];
+    self.authorize = auth;
+    [auth release];
+    
+    if ([redirectURI length] > 0){
+        [authorize setRedirectURI:redirectURI];
+    }else{
+        [authorize setRedirectURI:@"http://"];
+    }
+    self.requestPath=WeiboRequestPathForOAuth;
+    
+    [authorize startAuthorize];
+}
+
+/**
+ * 查看用户信息
+ * @param wuid 微博用户id
+ */
+-(void) showUser:(NSString *) wuid{
+    //子类实现
+    self.requestPath=WeiboRequestPathForShowUser;
+    NSString *methodName=nil;
+    if (!wuid || [wuid isEqualToString:@""]) {
+        methodName=[NSString stringWithFormat:@"people/id=%@",wuid];
+    }else{
+        methodName=@"people/~";
+    }
+    NSMutableDictionary *params=[NSMutableDictionary dictionary];
+    [self loadRequestWithMethodName:methodName
+                         httpMethod:@"GET"
+                             params:params
+                       postDataType:kWBRequestPostDataTypeNone
+                   httpHeaderFields:nil];
+}
+
+/**
+ * 发送微博
+ * @param text 微博文本内容
+ * @param image 带图片的微博,可空
+ * @param lat 纬度
+ * @param lng 经度
+ **/
+- (void)sendWeiBoWithText:(NSString *)text image:(UIImage *)image lat:(NSString*)lat lng:(NSString*)lng{
+    //子类实现
+}
+
+/**
+ * 转发微博
+ * @param text 内容
+ * @param 转发微博的id
+ */
+- (void)repostWeiboWithText:(NSString *) text weibId:(NSString *)weiboId{
+    //子类实现
+}
+
+/**
+ * 评论微博
+ * @param text 内容
+ * @param 待评论微博的id
+ */
+-(void) commentsWeiboWithText:(NSString *)text weiboId:(NSString *)weiboId{
+    //子类实现
+}
+
+/**
+ * 关注某用户
+ * @param uid 待关注的微博用户id uid与screenName必须二选一
+ * @param screenName 微博昵称，如果uid为空，则使用此参数
+ **/
+-(void) friendshipsCreate:(NSString *) uid screenName:(NSString*)nick{
+    //子类实现
+}
+
+/**
+ * 取消关注某用户
+ * @param uid 待取消关注的微博用户id uid与screenName必须二选一
+ * @param screenName 微博昵称，如果uid为空，则使用此参数
+ **/
+-(void) friendshipsDestroy:(NSString *) uid screenName:(NSString *)nick{
+    //子类实现
+}
+
+@end

@@ -1,0 +1,511 @@
+//
+//  ALDImageView.m
+//  npf
+//
+//  Created by yulong chen on 12-5-4.
+//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//
+
+#import "ALDImageView.h"
+#import "UIView+screenshot.h"
+#import <QuartzCore/QuartzCore.h>
+#import "ALDBigPhotoView.h"
+#import "ALDUtils.h"
+
+#define kActTag 2000
+
+#define kCoverViewTag           1234
+#define kImageViewTag           1235
+#define kAnimationDuration      0.3f
+#define kBackViewColor          [UIColor blackColor]
+
+@interface ALDImageView ()
+
+@property (nonatomic,retain) NSString *bigImageUrl; //大图路径
+@property (nonatomic,assign) id target; //触屏事件响应对象
+@property (nonatomic,assign) SEL selector; //触屏事件响应方法
+//@property (nonatomic,retain) id param; //触屏事件响应方法传入参数
+
+@end
+
+@implementation ALDImageView
+@synthesize imageUrl=_imageUrl;
+@synthesize bigImageUrl=_bigImageUrl;
+@synthesize defaultImage=_defaultImage;
+@synthesize autoResize=_autoResize;
+@synthesize actIndicatorViewStyle=_actIndicatorViewStyle;
+@synthesize scale=_scale;
+@synthesize delegate=_delegate;
+@synthesize clickAble=_clickAble;
+@synthesize userInfo=_userInfo;
+@synthesize fitImageToSize=_fitImageToSize;
+@synthesize needAutoCenter=_needAutoCenter;
+@synthesize needShowBigImage=_needShowBigImage;
+
+- (id)initWithFrame:(CGRect)frame
+{
+    self = [super initWithFrame:frame];
+    if (self) {
+        // Initialization code
+//        self.defaultImage=[UIImage imageNamed:@"img_error.png"];
+        self.fitImageToSize=YES;
+        //self.defaultImage=[UIImage imageNamed:@"logo_defualt"];
+        self.needAutoCenter=YES;
+        self.scale=1.0f;
+        self.needShowBigImage=NO;
+        self.needCropImage=NO;
+    }
+    return self;
+}
+
+-(void) setClickAble:(BOOL)clickAble{
+    _clickAble=clickAble;
+    if (clickAble) {
+        self.userInteractionEnabled=YES;
+    }else {
+        self.userInteractionEnabled=NO;
+    }
+}
+
+-(void) addTarget:(id)target action:(SEL)action forControlEvents:(UIControlEvents)controlEvents{
+    self.target=target;
+    self.selector=action;
+    _touchType=controlEvents;
+}
+
+-(void) setImageUrl:(NSString *)imageUrl{
+    self.image=_defaultImage;
+    ALDRelease(_imageUrl);
+    _imageUrl=nil;
+    if (!imageUrl || [imageUrl isEqualToString:@""]) {
+        return;
+    }
+    _imageUrl=ALDReturnRetained(imageUrl);
+    if ([_imageUrl hasPrefix:@"http://"] || [_imageUrl hasPrefix:@"https://"]) {
+        UIActivityIndicatorView *actIndicatorView = (UIActivityIndicatorView*)[self viewWithTag:kActTag];
+        if (!actIndicatorView) {
+            if (_actIndicatorViewStyle==2) {
+                actIndicatorView=[[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleWhite];
+            }else {
+                actIndicatorView=[[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleGray];
+            }
+            
+            [actIndicatorView setCenter:self.center];
+            actIndicatorView.tag=kActTag;
+            actIndicatorView.hidden = NO;
+            [self addSubview:actIndicatorView];
+            [actIndicatorView startAnimating];
+            ALDRelease(actIndicatorView);
+        }else {
+            [actIndicatorView startAnimating];
+            actIndicatorView.hidden = NO;
+        }
+        ALDAsyncLoadImage *imageLoad=[ALDAsyncLoadImage asyncLoadImage];
+        UIImage *image=[imageLoad loadImageWithUrl:_imageUrl delegate:self];
+        if (image) {
+            if (_autoResize) {
+                self.image=[self autoScaleImage:image];
+            }else if(_fitImageToSize){
+                self.image=[self scaleFromImage:image];
+            } else {
+                self.image=image;
+            }
+            actIndicatorView = (UIActivityIndicatorView*)[self viewWithTag:kActTag];
+            [actIndicatorView removeFromSuperview];
+            
+            if (_delegate && [_delegate respondsToSelector:@selector(imageLoadedFinish:)]) {
+                [_delegate imageLoadedFinish:image];
+            }
+        }
+    }else if([_imageUrl hasPrefix:@"file://"]||[_imageUrl hasPrefix:@"/"]){
+        UIImage *image=[UIImage imageWithContentsOfFile:_imageUrl];
+        if (image!=nil) {
+            if (_autoResize) {
+                self.image=[self autoScaleImage:image];
+            }else if(_fitImageToSize){
+                self.image=[self scaleFromImage:image];
+            } else {
+                self.image=image;
+            }
+        }
+    }else if(_imageUrl && ![_imageUrl isEqualToString:@""]){
+        UIImage *image=[UIImage imageNamed:_imageUrl];
+        if (image!=nil) {
+            if (_autoResize) {
+                self.image=[self autoScaleImage:image];
+            }else if(_fitImageToSize){
+                self.image=[self scaleFromImage:image];
+            }else {
+                self.image=image;
+            }
+            
+        }
+    }
+}
+
+-(void) layoutSubviews{
+    UIActivityIndicatorView *actIndicatorView = (UIActivityIndicatorView*)[self viewWithTag:kActTag];
+    if (actIndicatorView) {
+        [actIndicatorView setCenter:self.center];
+    }
+    [super layoutSubviews];
+}
+
+- (UIImage *)autoScaleImage:(UIImage *)image{
+    CGFloat width=image.size.width/2.f;
+    CGFloat height=image.size.height/2.f;
+    CGFloat viewWidth=self.frame.size.width;
+    CGFloat viewHight=self.frame.size.height;
+    CGFloat newW;
+    CGFloat newH;
+    if (width>viewWidth || height>viewHight) {
+        CGFloat scale;
+        if (width>viewWidth) {
+            scale=viewWidth/width;
+            newH=height*scale;
+            if (newH>viewHight) {
+                scale=viewHight/height;
+            }
+            newH=height*scale;
+            newW=width*scale;
+        }else {
+            scale=viewHight/height;
+            newH=height*scale;
+            newW=width*scale;
+        }
+        self.scale=scale;
+    }else {
+        newW=width;
+        newH=height;
+        self.scale=1.0f;
+    }
+    CGRect frame=self.frame;
+    CGPoint cent= self.center;
+    
+    self.frame=CGRectMake(frame.origin.x, frame.origin.y, newW, newH);
+    if (self.needAutoCenter) {
+        self.center=cent;
+    }
+//    NSTimeInterval startTime=[[NSDate date] timeIntervalSince1970];
+    if (_fitImageToSize) {
+        NSData *data= UIImagePNGRepresentation(image);
+        if (data.length>100*1024) { //大于100kb
+            image=[self scaleFromImage:image];
+        }
+    }
+    
+//    NSTimeInterval endTime=[[NSDate date] timeIntervalSince1970];
+//    NSLog(@"Processing Image spend time:%f s",(endTime-startTime));
+    return image;
+}
+
+-(UIImage *) scaleFromImage: (UIImage *) image
+{
+    if (!image) {
+        return nil;
+    }
+    
+    //取视图大小的2倍
+    CGFloat vWidth=self.frame.size.width*2;
+    CGFloat vHeight=self.frame.size.height*2;
+    CGFloat imgWidth=image.size.width;
+    CGFloat imgHeight=image.size.height;
+    
+    //先缩放，再裁剪
+    CGFloat resizeWidth=vWidth;
+    CGFloat resizeHeight=vHeight;
+    if (imgWidth<=vWidth && imgHeight<=vHeight) { //已经很小，直接返回
+        return image;
+    }else if (imgWidth>vWidth && imgHeight<=vHeight){
+        resizeWidth=vWidth;
+        resizeHeight=imgHeight*(resizeWidth/imgWidth);
+    }else if (imgWidth<=vWidth && imgHeight>vHeight){
+        resizeWidth=imgWidth*(resizeHeight/imgHeight);
+        resizeHeight=vHeight;
+    }else{
+        CGFloat wScale=vWidth/imgWidth;
+        CGFloat hScale=vHeight/imgHeight;
+        if (wScale<hScale) {
+            resizeWidth=imgWidth*wScale;
+            resizeHeight=imgHeight*wScale;
+        }else{
+            resizeWidth=imgWidth*hScale;
+            resizeHeight=imgHeight*hScale;
+        }
+    }
+    
+    UIGraphicsBeginImageContext(CGSizeMake(resizeWidth, resizeHeight));
+    [image drawInRect:CGRectMake(0, 0, resizeWidth, resizeHeight)];
+    UIImage *newImage = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    if (!newImage) {
+        return image;
+    }
+    if (self.needCropImage) {
+        CGFloat x=0;
+        CGFloat y=0;
+        
+        CGFloat width=resizeWidth,height=resizeHeight;
+        if (resizeWidth>vWidth) {
+            x=(resizeWidth-vWidth)/2.f;
+        }else{
+            width=resizeWidth;
+        }
+        if (resizeHeight>vHeight) {
+            y=(resizeHeight-vHeight)/2.f;
+        }else{
+            height=resizeHeight;
+        }
+        
+        CGRect rect =  CGRectMake(x,y,width,height); //要裁剪的图片区域，按照原图的像素大小来，超过原图大小的边自动适配
+        CGImageRef cgimg = CGImageCreateWithImageInRect([newImage CGImage], rect);
+        newImage = [UIImage imageWithCGImage:cgimg];
+        CGImageRelease(cgimg); //用完一定要释放，否则内存泄露
+        return newImage;
+    }else{
+        return newImage;
+    }
+}
+
+/**
+ * 等比缩放图片
+ * @param image 待缩放的图片对象
+ * @param scaleSize 缩放比例
+ * @return 返回缩放后的图片对象
+ */
+- (UIImage *)scaleImage:(UIImage *)image toScale:(float)scaleSize
+{
+    UIGraphicsBeginImageContext(CGSizeMake(image.size.width * scaleSize, image.size.height * scaleSize));
+    [image drawInRect:CGRectMake(0, 0, image.size.width * scaleSize, image.size.height * scaleSize)];
+    UIImage *scaledImage = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return scaledImage;
+}
+
+-(void) touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event{
+    _hasClickResponded=NO;
+    if (_clickAble) {
+        [self clickEffect];
+        if (_needShowBigImage) {
+            //不处理
+        }else{
+            UITouch *touch = [[event allTouches] anyObject];
+            if(touch.tapCount==1 &&_touchType==UIControlEventTouchDown){
+                if ([_target respondsToSelector:_selector])
+                {
+                    _hasClickResponded=YES;
+                    [_target performSelector:_selector withObject:self];
+                }
+                return;
+            }
+        }
+        return ;
+    }
+    [super touchesBegan:touches withEvent:event];
+}
+
+-(void) touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event{
+    if (_clickAble) {
+        [self clearEffect];
+        //不处理移动事件
+        return ;
+    }
+    [super touchesCancelled:touches withEvent:event];
+}
+
+-(void) touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event{
+    if (_clickAble) {
+        [self clearEffect];
+        if (_needShowBigImage) {
+            [self imageTap];
+        }else{
+            UITouch *touch = [[event allTouches] anyObject];
+            if(!_hasClickResponded && touch.tapCount==1 &&(_touchType==UIControlEventTouchUpOutside || _touchType==UIControlEventTouchUpInside)){
+                if ([_target respondsToSelector:_selector])
+                {
+                    _hasClickResponded=YES;
+                    [_target performSelector:_selector withObject:self];
+                }
+                return;
+            }
+        }
+        return ;
+    }
+    [super touchesEnded:touches withEvent:event];
+}
+
+-(void) touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event{
+    if (_clickAble) {
+        [self clearEffect];
+        return ;
+    }
+    [super touchesMoved:touches withEvent:event];
+}
+
+-(void) clearEffect{
+    [_coverView removeFromSuperview];
+}
+
+- (UIView *) coverForRect:(CGRect)aRect{
+    UIView *cover = [[UIView alloc] initWithFrame:aRect];
+    cover.backgroundColor=[UIColor blackColor];
+    cover.alpha=0.3;
+    cover.layer.masksToBounds=self.layer.masksToBounds;
+    cover.layer.cornerRadius=self.layer.cornerRadius;
+    cover.layer.contentsGravity = kCAGravityCenter;
+    return ALDReturnAutoreleased(cover);
+}
+
+-(void) clickEffect{
+    if (!_coverView) {
+        CGRect rect=self.frame;
+        rect.origin.x=0;
+        rect.origin.y=0;
+        _coverView=ALDReturnRetained([self coverForRect:rect]);
+    }
+    if(!_coverView.superview){
+        [self addSubview:_coverView];
+    }
+}
+
+/*
+ // Only override drawRect: if you perform custom drawing.
+ // An empty implementation adversely affects performance during animation.
+ - (void)drawRect:(CGRect)rect
+ {
+ // Drawing code
+ }
+ */
+
+/**
+ * 执行返回调用接口
+ * @param error 错误信息
+ */
+-(void) imageLoadedFail:(NSError *) error{
+    UIActivityIndicatorView *actIndicatorView = (UIActivityIndicatorView*)[self viewWithTag:kActTag];
+    if (actIndicatorView) {
+        [actIndicatorView removeFromSuperview];
+    }
+    self.image=_defaultImage;
+    if (_delegate && [_delegate respondsToSelector:@selector(imageLoadedFail:)]) {
+        [_delegate imageLoadedFail:error];
+    }
+    //NSLog(@"Load Image Error:,imageUrl:%@",_imageUrl);
+//    NSLog(@"Load Image Error,set defaultImage:%@ ,imageUrl:%@ ,ImageView:%p",_defaultImage,_imageUrl,self);
+}
+
+/**
+ * 执行返回调用接口
+ * @param image 请求返回的image对象
+ */
+-(void) imageLoadedFinish:(UIImage *) image{
+    UIActivityIndicatorView *actIndicatorView = (UIActivityIndicatorView*)[self viewWithTag:kActTag];
+    if (actIndicatorView) {
+        [actIndicatorView removeFromSuperview];
+    }
+    if (_autoResize) {
+        self.image=[self autoScaleImage:image];
+    }else if (_fitImageToSize) {
+        self.image=[self scaleFromImage:image];
+    } else {
+        self.image=image;
+    }
+    if (_delegate && [_delegate respondsToSelector:@selector(imageLoadedFinish:)]) {
+        [_delegate imageLoadedFinish:image];
+    }
+}
+
+//以下是显示大图用
+- (void)hiddenView
+{
+    [[UIApplication sharedApplication]setStatusBarHidden:NO withAnimation:UIStatusBarAnimationFade];
+    UIView *coverView = (UIView *)[[self window] viewWithTag:kCoverViewTag];
+    [coverView removeFromSuperview];
+}
+
+- (void)hiddenViewAnimation
+{    
+    UIImageView *imageView = (UIImageView *)[[self window] viewWithTag:kImageViewTag];
+    
+    [UIView beginAnimations:nil context:nil];    
+    [UIView setAnimationDuration:kAnimationDuration]; //动画时长
+    CGRect rect = [self convertRect:self.bounds toView:self.window];
+    imageView.frame = rect;
+    
+    [UIView commitAnimations];
+    [self performSelector:@selector(hiddenView) withObject:nil afterDelay:kAnimationDuration];
+    
+}
+
+- (void)imageTap
+{    
+    [[UIApplication sharedApplication]setStatusBarHidden:YES withAnimation:UIStatusBarAnimationFade];
+    CGRect coverFrame=[[UIScreen mainScreen] bounds];
+    UIView *coverView = [[UIView alloc] initWithFrame:coverFrame];
+    coverView.backgroundColor = kBackViewColor;
+    coverView.tag = kCoverViewTag;
+    coverView.alpha=1;
+    UITapGestureRecognizer *hiddenViewGecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(hiddenViewAnimation)];
+    [coverView addGestureRecognizer:hiddenViewGecognizer];
+    ALDRelease(hiddenViewGecognizer);
+    
+    CGRect rect = [self convertRect:coverView.bounds toView:self.window];
+    ALDBigPhotoView *imageView = [[ALDBigPhotoView alloc] initWithFrame:rect];
+    imageView.tag = kImageViewTag;
+    imageView.userInteractionEnabled = YES;
+    imageView.contentMode = self.contentMode;
+    if (_bigImageUrl==nil) {
+        [imageView setImage:self.image];
+    }else {
+        [imageView setImageWithURL:_bigImageUrl placeholderImage:self.defaultImage];
+    }
+    
+    [coverView addSubview:imageView];
+    
+    UIButton *closeBtn=[UIButton buttonWithType:UIButtonTypeCustom];
+    UIImage *closeImage=[UIImage imageNamed:@"close"];
+    [closeBtn setBackgroundImage:closeImage forState:UIControlStateNormal];
+    [closeBtn addTarget:self action:@selector(hiddenViewAnimation) forControlEvents:UIControlEventTouchUpInside];
+    coverFrame.origin.x=coverFrame.size.width-closeImage.size.width-3;
+    coverFrame.origin.y=23;
+    coverFrame.size.width=closeImage.size.width;
+    coverFrame.size.height=closeImage.size.height;
+    closeBtn.frame=coverFrame;
+    [coverView addSubview:closeBtn];
+    [[self window] addSubview:coverView];
+    
+    [UIView beginAnimations:nil context:nil];
+    [UIView setAnimationDuration:kAnimationDuration];    
+    imageView.center=coverView.center;
+    ALDRelease(imageView);
+    ALDRelease(coverView);
+    [UIView commitAnimations];    
+}
+
+- (void)addBigImageShow:(NSString*)bigImageUrl 
+{
+    self.bigImageUrl=bigImageUrl;
+    if (!bigImageUrl || [bigImageUrl isEqualToString:@""]) {
+        self.needShowBigImage=NO;
+    }else{
+        self.userInteractionEnabled = YES;
+        self.clickAble=YES;
+        self.needShowBigImage=YES;
+    }
+}
+
+- (void)dealloc
+{
+    self.target=nil;
+//    self.param=nil;
+    ALDRelease(_imageUrl);
+    ALDRelease(_bigImageUrl);
+    ALDRelease(_defaultImage);
+    ALDRelease(_userInfo);
+    ALDRelease(_coverView);
+#if ! __has_feature(objc_arc)
+    [super dealloc];
+#endif
+}
+
+@end

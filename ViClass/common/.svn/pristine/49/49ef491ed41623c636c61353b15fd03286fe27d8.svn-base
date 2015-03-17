@@ -1,0 +1,131 @@
+//
+//  ChatDao.m
+//  OpenApi
+//  版聊内容存储表，表字段：[chat_id,form_uid,name,avator,content,create_date,top_flag]
+//  Created by yulong chen on 13-1-18.
+//  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+//
+
+#import "ChatDao.h"
+
+@implementation ChatDao
+
+- (id)init
+{
+    self = [self initWithTbname:@"tb_chat"];
+    if (self) {
+        //self.tbname=@"tb_user";
+    }
+    return self;
+}
+
+//创建表，覆盖父类方法
+-(BOOL)createTable{ 
+    //[chat_id,form_uid,name,avator,content,create_date,top_flag]
+    NSString *sql=[NSString stringWithFormat:@"create table IF NOT EXISTS %@(chat_id Integer PRIMARY KEY ,form_uid Integer Not Null,name VARCHAR(60) not null,avator varchar(100),content Text,create_date Varchar(20),top_flag Integer)",_tbname];
+    return [self executeUpdate:sql];
+}
+
+/**
+ * 添加聊天内容，如果存在则更新
+ * @param bean 聊天内容对象
+ * @return 成功返回true,失败返回false
+ */
+-(BOOL) addChat:(ChatBean *) bean{
+    if(!bean){
+        NSLog(@"invalid chat data .");
+        return NO;
+    }
+    //[chat_id,form_uid,name,avator,content,create_date,top_flag]
+    NSMutableDictionary *dic=[NSMutableDictionary dictionary];
+    [self dictionarySetValue:dic key:@"chat_id" value:[NSNumber numberWithLong:bean.chatId]];
+    [self dictionarySetValue:dic key:@"form_uid" value:[NSNumber numberWithLong:bean.fromUid]];
+    [self dictionarySetValue:dic key:@"name" value:bean.name];
+    [self dictionarySetValue:dic key:@"avator" value:bean.avator];
+    [self dictionarySetValue:dic key:@"content" value:bean.content];
+    [self dictionarySetValue:dic key:@"create_date" value:bean.createDate];
+    [self dictionarySetValue:dic key:@"top_flag" value:[NSNumber numberWithInt:bean.topFlag]];
+    
+    NSString *where=[NSString stringWithFormat:@"chat_id=%ld",bean.chatId];
+    FMResultSet *rs=[self query:@"chat_id,form_uid,name" whereCaluse:where selectionArgs:nil];
+    BOOL success;
+    if([rs next]){ //已经存在,则做更新
+        success = [self update:dic whereClase:where selectionArgs:nil];
+    }else{
+        success = [super insert:dic];
+    }
+    [rs close];
+    return success;
+}
+
+/**
+ * 更新聊天内容，如果不存在则新增
+ * @param bean 聊天内容对象
+ * @return 成功返回true,失败返回false
+ */
+-(BOOL) updateChat:(ChatBean *) bean{
+    return [self addChat:bean];
+}
+
+
+/**
+ * 删除聊天内容
+ * @param chatId 聊天内容id
+ * @return 成功返回true,失败返回false
+ */
+-(BOOL) deleteChat:(long)chatId{
+    NSString *where=[NSString stringWithFormat:@"chat_id=%ld",chatId];
+    BOOL success=[self delete:where selectionArgs:nil];
+    return success;
+}
+
+/**
+ * 清除置顶标识
+ **/
+-(BOOL) clearToptag{
+    NSMutableDictionary *dic=[[[NSMutableDictionary alloc] init ] autorelease];
+    [self dictionarySetValue:dic key:@"top_flag" value:[NSNumber numberWithInt:0]];
+    return [self update:dic whereClase:@"top_flag=1" selectionArgs:nil];
+}
+
+/**
+ * 聊天记录查询
+ * @param startIdx startIdx 查询起始索引，包括该索引项
+ * @param max 最大返回结果数
+ * @return 返回聊天内容列表列表，不存在返回空的数组
+ */
+-(NSMutableArray*) queryChats:(int) startIdx max:(int) max{
+    NSMutableArray *result=[NSMutableArray array];
+    NSString *where=@"1=1";
+    //[chat_id,form_uid,name,avator,content,create_date,top_flag]
+    NSString *limit=nil;
+    if(max>0){
+        limit=[NSString stringWithFormat:@"%d,%d",startIdx,max];
+    }
+    
+    FMResultSet *rs=[self query:@"*" whereCaluse:where selectionArgs:nil orderBy:@"top_flag desc,chat_id desc" limit:limit];
+    while([rs next]){
+        ChatBean *bean=[[ChatBean alloc] init];
+        bean.chatId=[rs longForColumn:@"chat_id"];
+        bean.fromUid=[rs longForColumn:@"form_uid"];
+        bean.name=[rs stringForColumn:@"name"];
+        bean.avator=[rs stringForColumn:@"avator"];
+        bean.content=[rs stringForColumn:@"content"];
+        bean.createDate=[rs stringForColumn:@"create_date"];
+        bean.topFlag=[rs intForColumn:@"top_flag"];
+        [result addObject:bean];
+        [bean release];
+    }
+    [rs close];
+    return result;
+}
+
+/**
+ * 清除数据
+ **/
+-(BOOL) clearData{
+    NSString *where=@"1==1";
+    BOOL success=[self delete:where selectionArgs:nil];
+    return success;
+}
+@end

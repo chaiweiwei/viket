@@ -1,0 +1,52 @@
+/* 
+  openapi.strings
+  GWCClub
+
+  Created by yulong chen on 13-3-14.
+  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+*/
+
+"weibo_auth_title" = "Weibo Authorization";
+"weibo_share" = "Share to weibo";
+"QQ_auth_title" = "QQ Authorization";
+"Tabao_auth_title" = "Tabao Authorization";
+"cancel" = "Cancel";
+"back" = "Back";
+"close" = "Close";
+"OK" = "OK";
+"delete" = "delete";
+"send" = "Send";
+"done" = "Done";
+"broadcast" = "Send";
+"loading" = "In loading,please wait...";
+"sending" = "In sending,please wait...";
+"Load_error" = "Load with error，please try again later!";
+"netError" = "The net error, make sure that you are connected!";
+"tipsTitle" = "Message alert";
+"device_not_support" = "Your device does not have text messaging capabilities!";
+"version_too_low" = "IOS version is too low, they will not support this feature!";
+"cacel_message" = "You have to cancel the SMS Share";
+"msg_success" = "Sharing to SMS successs";
+"msg_failed" = "Sharing to SMS failure";
+"enter_verify" ="Please enter the verification code";
+"server_error" = "The server return failed!";
+"bind_error" = "Bind weibo error,please try again later!";
+"bind_success" = "Bind weibo successed!";
+"bind_expired" = "Authorize has expired!";
+"need_bind_weibo" = "Need bind weibo!";
+"tabao_bind_success"="Congratulations on your successful login by Taobao account!";
+"tabao_bind_error"="Taobao Authorize failed!";
+"photo"="TakePhoto";
+"picture"="Album";
+"Character is more than %@" = "Character is more than %@,please delete some one!";
+"Unrecognized operation"="Unrecognized operation";
+"EmptyContent"="Content can't be null";
+"topic"="Topic";
+"phiz"="Phiz";
+"not support photo" ="Your device not support take photo!";
+"send ok" = "Send Successed！";
+"send failed" = "Send failed,please try again later!";
+"failed with frequent" = "Your operation is too frequent,please try again later!";
+"edit msg title" = "Edit Message";
+"Details" = "Details";
+

@@ -1,0 +1,421 @@
+//
+//  NearlyViewController.m
+//  OpenApi
+//
+//  Created by aaa a on 13-1-14.
+//  Copyright (c) 2013年 qw. All rights reserved.
+//
+
+#import "NearlyViewController.h"
+#import "ALDImageView.h"
+#import "ChatViewController.h"
+#import "ALDUtils.h"
+#import "ALDResult.h"
+#import "UserBean.h"
+@interface NearlyViewController ()
+
+@end
+
+@implementation NearlyViewController
+@synthesize tableview;
+@synthesize data=_data;
+@synthesize appSn=_appSn;
+@synthesize serverUrl=_serverUrl;
+@synthesize refreshing;
+@synthesize lat=_lat,lng=_lng;
+
+- (void)dealloc {
+    [tableview release];
+    [_locManager stopUpdatingLocation];
+    [_locManager release];
+    [_lat release];
+    [_lng release];
+    [_data release];
+    [_appSn release];
+    [_serverUrl release];
+    [super dealloc];
+}
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        // Custom initialization
+    }
+    return self;
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    UIBarButtonItem *rightButton=[[UIBarButtonItem alloc]initWithTitle:@"聊天" 
+                                                                 style:UIBarButtonItemStylePlain 
+                                                                target:self 
+                                                                action:@selector(selectPress:)];
+    rightButton.tag=0x202;
+    self.navigationItem.rightBarButtonItem=rightButton;
+    [rightButton release];
+    
+    if (!self.title || [self.title isEqualToString:@""]) {
+        self.title=@"附近的人";
+    }
+    
+    _radius=0;
+    _page=1;
+    _pageCount=20;
+    _hasNext=NO;
+    _isInit=YES;
+    
+    CGRect frame=CGRectMake(0, 0, 320, 460);
+    tableview = [[PullingRefreshTableView alloc] initWithFrame:frame pullingDelegate:self];
+    tableview.dataSource = self;
+    tableview.autoresizingMask=UIViewAutoresizingFlexibleHeight|UIViewAutoresizingFlexibleWidth;
+    tableview.separatorStyle=UITableViewCellSeparatorStyleSingleLine;
+    tableview.delegate = self;
+    tableview.backgroundColor=[UIColor clearColor];    
+    [self.view addSubview:tableview];
+    
+//    self.lat=@"123.0231";
+//    self.lng=@"76.2343";
+}
+
+-(void) viewDidAppear:(BOOL)animated{
+    if (!_locManager) {
+        tableview.hidden=YES;
+        [ALDUtils addWaitingView:self.view withText:@"正在获取位置信息，请稍等..."];
+        _locManager = [[CLLocationManager alloc] init]; 
+        [_locManager setDelegate:self]; 
+        [_locManager setDesiredAccuracy:kCLLocationAccuracyBest];
+        [_locManager startUpdatingLocation]; //开始获取经纬度
+    }
+}
+
+-(void) loadData{
+    NSUserDefaults *config=[NSUserDefaults standardUserDefaults];
+    NSString *appid=[config objectForKey:kAppidKey];
+    OpenApiHttpClient *http=[OpenApiHttpClient httpClientWithDelegate:self];
+    http.needTipsNetError=YES;
+    http.serverUrl=_serverUrl;
+    if (!appid || [appid isEqualToString:@""]) {
+        [http registAppId:_appSn];
+    }else {
+        [http nearbyUser:appid appSn:_appSn lat:_lat lng:_lng radius:_radius page:_page pageCount:_pageCount];
+    }
+}
+
+-(void) uploadLatlng:(NSString*)lat lng:(NSString*)lng{
+    NSString *appid=[[NSUserDefaults standardUserDefaults] objectForKey:kAppidKey];
+    OpenApiHttpClient *http=[OpenApiHttpClient httpClientWithDelegate:self];
+    http.needTipsNetError=YES;
+    http.serverUrl=_serverUrl;
+    [http uploadLatlng:appid appSn:_appSn lat:lat lng:lng];
+}
+
+- (void)getMore{
+    if (!_hasNext) {
+        [self.tableview tableViewDidFinishedLoading];
+        self.tableview.reachedTheEnd  = YES;
+        return;
+    }
+    _page++;
+    [self loadData];
+}
+
+-(void) refrashClick{
+    //需要获取经纬度
+    _page=1;
+    _hasNext=NO;
+    self.data=nil;
+    self.refreshing = NO;
+    self.tableview.reachedTheEnd  = NO;
+    
+    [self loadData];
+}
+
+-(void) locationManager:(CLLocationManager *)manager didUpdateToLocation:(CLLocation *)newLocation fromLocation:(CLLocation *)oldLocation{
+    CLLocationCoordinate2D loc = [newLocation coordinate];
+    self.lat =[NSString stringWithFormat:@"%f",loc.latitude];//纬度
+    self.lng =[NSString stringWithFormat:@"%f",loc.longitude];//经度
+    if (_isInit) {
+        [self loadData];
+        _isInit=NO;
+    }
+    [self uploadLatlng:_lat lng:_lng];
+}
+
+-(void)selectPress:(id)sender{
+    UIButton *btn=(UIButton *)sender;
+    if (btn.tag==0x202) {
+        ChatViewController *controlview=[[ChatViewController alloc]init];
+        controlview.appSn=self.appSn;
+        controlview.serverUrl=_serverUrl;
+        UIBarButtonItem *backItem = [[UIBarButtonItem alloc] initWithTitle:@"返回" style:UIBarButtonItemStyleBordered target:nil action:nil];  
+        [self.navigationItem setBackBarButtonItem:backItem]; 
+        [backItem release];
+        [self.navigationController pushViewController:controlview animated:YES];
+        [controlview release];
+    }
+}
+
+#pragma mark - Your actions
+- (void)scrollLoadData{
+    NSAutoreleasePool *pool=[[NSAutoreleasePool alloc] init];
+    if (self.refreshing) {
+        [self refrashClick];
+    }else {
+        [self getMore];
+    }
+    [pool release];
+}
+#pragma mark - PullingRefreshTableViewDelegate
+- (void)pullingTableViewDidStartRefreshing:(PullingRefreshTableView *)tableView{
+    self.refreshing = YES;
+    [self performSelector:@selector(scrollLoadData) withObject:nil afterDelay:1.f];
+}
+
+- (void)pullingTableViewDidStartLoading:(PullingRefreshTableView *)tableView{
+    [self performSelector:@selector(scrollLoadData) withObject:nil afterDelay:1.f];    
+}
+
+#pragma mark - Scroll
+
+- (void)scrollViewDidScroll:(UIScrollView *)scrollView{
+    if (scrollView==tableview) {
+        [self.tableview tableViewDidScroll:scrollView];
+    }
+}
+
+- (void)scrollViewDidEndDragging:(UIScrollView *)scrollView willDecelerate:(BOOL)decelerate{
+    if (scrollView==tableview) {
+        [self.tableview tableViewDidEndDragging:scrollView];
+    }
+}
+#pragma end ##
+
+#pragma mark Table view methods
+
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
+    return 1;
+}
+
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+    if (_data) {
+        if (_hasNext) {
+            return _data.count+1;
+        }
+        return _data.count;
+    }
+    return 0;
+}
+
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
+	if (_data && _data.count>0) {
+        if (indexPath.row>=_data.count) {
+            return 40;
+        }else{
+            return 70;
+        }
+    }
+    return 0;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    static NSString *moreIdentifier = @"moreCell";
+    static NSString *CellIdentifier = @"Cell";
+    int row=indexPath.row;
+    UITableViewCell *cell =nil;
+    if (row>=_data.count) {
+        cell = [tableView dequeueReusableCellWithIdentifier:moreIdentifier]; 
+        if (cell==nil) {
+            cell = [[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault 
+                                           reuseIdentifier: moreIdentifier ] autorelease];
+            cell.textLabel.textAlignment=TEXT_ALIGN_CENTER;
+            cell.textLabel.text=@"更   多";
+        }
+        cell.accessoryType = UITableViewCellAccessoryNone;
+    }else {
+        cell = [tableView dequeueReusableCellWithIdentifier:CellIdentifier];
+        if (cell == nil) {
+            cell = [[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:CellIdentifier] autorelease];
+            cell.textLabel.backgroundColor = [UIColor clearColor];
+            cell.selectionStyle = UITableViewCellSelectionStyleNone;
+            cell.textLabel.textColor = [UIColor blackColor];
+            
+            // logo 
+            ALDImageView *imgView = [[ALDImageView alloc] initWithFrame:CGRectMake(8, 5, 60, 60)];
+            imgView.tag=-0x130;
+            imgView.backgroundColor=[UIColor clearColor];
+            [cell addSubview:imgView];
+            [imgView release];
+            
+            //昵称
+            UILabel *nickLa=[[UILabel alloc]initWithFrame:CGRectMake(73, 10, 230, 15)];
+            nickLa.tag=-0x131;
+            nickLa.textAlignment=TEXT_ALIGN_LEFT;
+            nickLa.font=[UIFont boldSystemFontOfSize:16.0];
+            nickLa.textColor=[UIColor blackColor];
+            nickLa.backgroundColor=[UIColor clearColor];
+            [cell addSubview:nickLa];
+            [nickLa release];
+            
+            
+            //最新信息
+            UILabel *newInfoLa=[[UILabel alloc]initWithFrame:CGRectMake(73, 45, 230, 15)];
+            newInfoLa.tag=-0x132;
+            newInfoLa.textAlignment=TEXT_ALIGN_LEFT;
+            newInfoLa.font=[UIFont boldSystemFontOfSize:15.0];
+            newInfoLa.textColor=[UIColor grayColor];
+            newInfoLa.backgroundColor=[UIColor clearColor];
+            [cell addSubview:newInfoLa];
+            [newInfoLa release];
+            
+            //地理位置
+            UILabel *addfoLa=[[UILabel alloc]initWithFrame:CGRectMake(73, 28, 230, 15)];
+            addfoLa.tag=-0x133;
+            addfoLa.textAlignment=TEXT_ALIGN_LEFT;
+            addfoLa.font=[UIFont boldSystemFontOfSize:12.0];
+            addfoLa.textColor=[UIColor lightGrayColor];
+            addfoLa.backgroundColor=[UIColor clearColor];
+            [cell addSubview:addfoLa];
+            [addfoLa release];
+        }
+        UserBean *bean = [_data objectAtIndex:row];
+        
+        //logo
+        ALDImageView *imgView=(ALDImageView *)[cell viewWithTag:-0x130];
+        [imgView setImageUrl:nil];
+        NSString *imageUrl=bean.avator;
+        if (!imageUrl || [imageUrl isEqualToString:@""]) {
+            imageUrl=@"icon_avator_default.png";
+        }
+        [imgView setImageUrl:imageUrl];
+        
+        //昵称
+        UILabel *nickLa=(UILabel *)[cell viewWithTag:-0x131];
+        nickLa.text=bean.name;
+        
+        //最新信息
+        UILabel *newInfoLa=(UILabel *)[cell viewWithTag:-0x132];
+        NSString *signature=bean.signature;
+        if (!signature || [signature isEqualToString:@""]) {
+            signature=@"暂无个性签名";
+        }
+        newInfoLa.text=signature;
+        
+        //位置信息
+        UILabel *addfoLa=(UILabel *)[cell viewWithTag:-0x133];
+        int rang=bean.rang;
+        if (rang<100) {
+            rang=100;
+        }
+        addfoLa.text=[NSString stringWithFormat:@"%dm内",rang];
+    }
+    
+    return cell;
+}
+
+
+- (void)viewDidUnload
+{
+    self.tableview=nil;
+    self.data=nil;
+    _hasNext=NO;
+    [super viewDidUnload];
+    // Release any retained subviews of the main view.
+    // e.g. self.myOutlet = nil;
+}
+
+- (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
+{
+    return (interfaceOrientation == UIInterfaceOrientationPortrait);
+}
+
+-(void) addTips:(NSString*)text{
+    CGRect viewFrame=self.view.frame;
+    viewFrame.size.height-=40;
+    [ALDUtils showTips:self.view frame:viewFrame text:text];
+    tableview.hidden=YES;
+}
+
+-(void) aldDataStartLoad:(ALDHttpRequestPath)requestPath{
+    if (requestPath==ALDHttpRequestPathForUpLatlng) {
+        
+    }else {
+        if (!_data || _data.count<1) {
+            tableview.hidden=YES;
+        }
+        [ALDUtils addWaitingView:self.view withText:@"加载中，请稍候..."];
+    }
+}
+
+-(void) aldDataLoadDone:(ALDHttpRequestPath)requestPath withCode:(int)code withObj:(id)object{
+    if (requestPath==ALDHttpRequestPathForAppid) {
+        if (code==KOK) {
+            OpenApiHttpClient *http=[OpenApiHttpClient httpClientWithDelegate:self];
+            http.needTipsNetError=YES;
+            [http nearbyUser:object appSn:_appSn lat:_lat lng:_lng radius:_radius page:_page pageCount:_pageCount];
+        }else if (code==kNET_ERROR || code==kNET_TIMEOUT) {
+            [ALDUtils removeWaitingView:self.view];
+            [self addTips:@"请求失败，网络异常!"];
+        }else {
+            [ALDUtils removeWaitingView:self.view];
+            [self addTips:@"抱歉，获取附近的人失败!"];
+        }
+    }else if (requestPath==ALDHttpRequestPathForNearbyUser) {
+        ALDResult *result=(ALDResult*)object;
+        [ALDUtils removeWaitingView:self.view];
+        tableview.hidden=NO;
+        if (code==KOK) {
+            if (_page==1) {
+                self.data=result.obj;
+            }else {
+                [_data addObjectsFromArray:result.obj];
+            }
+            int totalCount=result.totalCount;
+            if(_data.count<totalCount){
+                _hasNext=YES;
+            }else {
+                _hasNext=NO;
+            }
+            if (!_hasNext) {
+                [tableview tableViewDidFinishedLoadingWithMessage:@"没有啦，加载完了!"];
+                tableview.reachedTheEnd  = YES;
+            } else {        
+                [tableview tableViewDidFinishedLoading];
+                tableview.reachedTheEnd  = NO;
+            }
+            [tableview reloadData];
+        }else if (code==kNO_RESULT) {
+            _hasNext=NO;
+            if (_page==1) {
+                [self addTips:@"暂无附近的人数据!"];
+            }else {
+                [tableview tableViewDidFinishedLoadingWithMessage:@"没有啦，加载完了!"];
+                tableview.reachedTheEnd  = YES;
+            }
+            [tableview reloadData];
+        }else if (code==kNET_ERROR || code==kNET_TIMEOUT) {
+            if (_page==1) {
+                [self addTips:@"请求失败，网络异常!"];
+            }else {
+                [ALDUtils showToast:@"请求失败，网络异常!"];
+                _page-=1;
+            }
+            [tableview tableViewDidFinishedLoading];
+        }else {
+            if (_page==1) {
+                [self addTips:@"抱歉，获取附近的人失败!"];
+            }else {
+                [ALDUtils showToast:@"抱歉，加载更多失败!"];
+                _page-=1;
+            }
+            [tableview tableViewDidFinishedLoading];
+        }
+    }else if(requestPath==ALDHttpRequestPathForUpLatlng) {
+        
+    }
+}
+
+@end

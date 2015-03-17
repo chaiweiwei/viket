@@ -1,0 +1,105 @@
+//
+//  ALDAsyncLoadImage.h
+//  npf
+//
+//  Created by yulong chen on 12-5-3.
+//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import "ASIHTTPRequest.h"
+#import "ASINetworkQueue.h"
+
+#define ASIMimeTypeError 12
+
+@protocol AsyncDownloaderDelegate <NSObject>
+
+@required
+/**
+ * 执行失败返回调用接口
+ * @param request 当前请求
+ * @param error 错误信息
+ */
+-(void) request:(ASIHTTPRequest*)request downloadedFailed:(NSError *) error;
+
+/**
+ * 执行成功返回调用接口
+ * @param request 当前请求
+ * @param localPath 下载数据保存路径
+ */
+-(void) request:(ASIHTTPRequest*)request downloadedFinish:(NSString *) localPath;
+
+@optional
+/**
+ * 进度监听
+ * @param progress 当前已下载进度,0-1的浮点值
+ **/
+- (void)setProgress:(float)progress;
+
+@end
+
+typedef enum: NSInteger{
+    DownloadStateWithStart = 1, //开始下载
+    DownloadStateWithLoading = 2, //已在下载
+    DownloadStateWithDone = 3, //下载完成
+    DownloadStateWithFailed = 4, //下载失败
+    DownloadStateWithPaused =5 , //暂停下载
+} DownloadState;
+
+@interface ALDAsyncDownloader : NSObject{
+    ASINetworkQueue *networkQueue;
+    NSFileManager *_fileManager;
+    
+    @private
+        NSMutableArray *_delegates;
+        NSMutableArray *_requests;
+        NSMutableDictionary *_requestForURL;
+}
+
+/**
+ * 单例
+ **/
++(id) asyncDownloader;
+
+/**
+ * 销毁单例
+ **/
++(void) releaseDownloader;
+
+/** 获取下载缓存路径 **/
+@property(retain,nonatomic) NSString* cachePath;
+
+/**
+ * 取消任务执行
+ * @param delegate 异步加载委托实现
+ **/
+- (void)cancelForDelegate:(id<AsyncDownloaderDelegate>)delegate;
+
+/**
+ * 数据下载，优先使用缓存
+ * @param url 下载地址url
+ * @param delegate 异步加载委托实现
+ * @return 返回下载状态，详见DownloadState
+ */
+-(DownloadState) downloadWithUrl:(NSURL *) url delegate:(id<AsyncDownloaderDelegate>) delegate;
+
+/**
+ * 当前请求是否有缓存
+ * @param url 请求url
+ * @return 如果有缓存，则直接返回该缓存文件路径，否则返回nil
+ **/
+-(NSString*) hasCachedForUrl:(NSURL*) url;
+
+/**
+ * 当前请求是否有缓存
+ * @param url 请求url
+ * @return 如果有缓存，则直接返回该缓存文件路径(有后缀名)
+ **/
+-(NSString*) getCachedForUrlPath:(NSURL*) url;
+
+/**
+ * 将url转换成本地路径
+ */
++(NSString *) convertUrlToPath:(NSString *)url;
+
+@end

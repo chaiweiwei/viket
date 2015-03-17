@@ -1,0 +1,34 @@
+//
+//  BaseViewController.h
+//  WeTalk
+//
+//  基类视图控制器
+//
+//  Created by x-Alidao on 14-8-13.
+//  Copyright (c) 2014年 skk. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import "HttpClient.h"
+#import "ShowTips.h"
+
+@interface BaseViewController : UIViewController<DataLoadStateDelegate,TipsViewDelegate>
+
+@property (assign,nonatomic ) UIViewController *rootController;
+@property (retain, nonatomic) id               background;
+@property (assign, nonatomic) CGFloat          baseStartY;
+
+-(void) onBackClicked;
+
+-(BOOL) isLogined;
+
+-(void) drawBackground;
+
+-(void) showTips:(NSString*) msg needRetryButton:(BOOL) needRetry;
+-(void) hiddenTips;
+-(void) addWaitView:(NSString *)msg;
+-(void) removeWaitView;
+
+-(void) showLoginView;
+
+@end

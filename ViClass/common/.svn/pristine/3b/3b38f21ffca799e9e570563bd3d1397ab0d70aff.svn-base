@@ -1,0 +1,42 @@
+//
+//  ChatViewController.h
+//  OpenApi
+//
+//  Created by aaa a on 13-1-14.
+//  Copyright (c) 2013年 qw. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import "OpenApiHttpClient.h"
+#import "PullingRefreshTableView.h"
+#import "SendChatViewController.h"
+#import "BaseViewController.h"
+
+@interface ChatViewController : BaseViewController<UITableViewDelegate,UITableViewDataSource,PullingRefreshTableViewDelegate,ALDDataLoadStateDelegate,SendChatDelegate>{
+    int _pageCount;
+    int _firstIdx;
+    BOOL _hasNext;
+    BOOL _isLoadMore;
+//    BOOL _isRefrashMore;
+//    BOOL _refrashHasNext; //如果刷新数据有分页，则一直使用远程的方式加载更多
+    BOOL _localHasNext; //如果本地数据库有更多，则使用本地加载更多
+}
+
+@property (retain, nonatomic) NSMutableArray *chatArray;
+@property (retain, nonatomic)PullingRefreshTableView *tableview;
+@property (nonatomic) BOOL refreshing;
+
+@property (retain,nonatomic) NSString *appSn;
+@property (retain,nonatomic) NSString *serverUrl;
+@property (nonatomic) long uid;
+@property (nonatomic) long ltId;
+@property (nonatomic) long gtId;
+//@property (nonatomic) long localMaxId;
+//@property (nonatomic) long localMinId;
+//@property (nonatomic) long preRefrashMaxId;
+//@property (nonatomic) long preRefrashMinId;
+
+//@property (nonatomic, retain) NSDate *lastTime;
+
+
+@end

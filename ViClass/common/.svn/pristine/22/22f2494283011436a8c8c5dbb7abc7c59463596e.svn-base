@@ -1,0 +1,31 @@
+/* 
+  Localizable.strings
+  GWCClub
+
+  Created by yulong chen on 13-3-14.
+  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+*/
+
+"Pull_down_refresh" = "Pull-down refresh";
+"Pull_up_Load" = "Pull-up load more";
+"Refreshing" = "In refreshing";
+"Loading" = "In loading";
+"Release_load_more"="Release load more";
+"Release_refresh" = "Release refresh";
+"No_more" = "No more data";
+"Today" = "Today";
+"Yesterday" = "Yesterday";
+"Before_yesterday" = "The day before yesterday";
+"Latest_update" = "Latest update";
+"App_Sponsored" = "APP Sponsored";
+"Close" = "Close";
+"OK" = "OK";
+"MsgTips" = "Message Tips";
+"Click_choice" = "Click to choice";
+"device no msg" = "Your device have no SMS function!";
+"not support msg" ="Your IOS version is too low，Not support send SMS in application!";
+"cancel msg" = "You have to cancel the SMS Share！";
+"msg ok" = "SMS to share success!";
+"msg failed" = "SMS to share failed!";
+"year mouth day" = "yyyy-MM-dd";
+"mouth day" = "MM-dd";

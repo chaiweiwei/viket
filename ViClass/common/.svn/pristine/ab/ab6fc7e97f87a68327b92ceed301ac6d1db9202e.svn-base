@@ -1,0 +1,42 @@
+//
+//  MyWBEngineDelegate.h
+//  hyt_ios
+//
+//  Created by yulong chen on 12-4-21.
+//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import "WBEngine.h"
+#import "OpenApiUtils.h"
+
+#define kAuthorizeError 213 //授权相关错误
+#define kNeedAuthorize 21301 //未授权
+#define kAuthorizeRemoved 21319 //授权已解除
+#define kAuthorizeExpired 21315 //授权已过期
+#define kAuthorizeFailed 21301 //认证失败
+#define kAuthorizeOK 200 //登陆成功
+#define kAuthorizeRequestOk 201 //请求成功
+
+//@protocol ALDWeiboDelegate <NSObject>
+//
+//@optional
+///**
+// * 微博请求失败
+// **/
+//-(void) response:(WBEngine *)engine requestDidFailWithError:(NSError *)error;
+//
+///**
+// *  微博请求成功
+// */
+//-(void) response:(WBEngine *)engine requestDidSucceedWithResult:(id)result;
+//
+//@end
+
+@interface MyWBEngineDelegate : NSObject<WBEngineDelegate>{
+     WBEngine *_weiBoEngine;
+}
+
+@property (nonatomic, assign) id<OpenApiDelegate> delegate;
+@property (assign,nonatomic) UIViewController *viewController;
+@end

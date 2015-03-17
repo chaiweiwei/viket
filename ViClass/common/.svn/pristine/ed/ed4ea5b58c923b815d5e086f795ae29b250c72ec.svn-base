@@ -1,0 +1,20 @@
+//
+//  RespForWeixinViewDelegate.h
+//  GWCClub
+//
+//  Created by yulong chen on 13-3-4.
+//  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+@protocol RespForWeixinViewDelegate <NSObject>
+- (BOOL) RespTextContent:(NSString*)nsText;
+- (BOOL) RespAppContent:(NSString *)title content:(NSString*)content image:(UIImage*)image appUrl:(NSString*)appUrl extInfo:(NSString*)extInfo filePath:(NSString*)filePath;
+- (BOOL) RespImageContent:(UIImage*) image filePath:(NSString*) filePath;
+- (BOOL) RespNewsContent:(NSString*) title content:(NSString*)content image:(UIImage*) image url:(NSString*)url; 
+- (BOOL) RespMusicContent:(NSString *)title content:(NSString*)content musicUrl:(NSString*)musicUrl musicDataUrl:(NSString*)musicDataUrl; 
+- (BOOL) RespVideoContent:(NSString *)title content:(NSString*)content image:(UIImage*)image videoUrl:(NSString*)videoUrl; 
+- (BOOL) RespNonGifContent:(UIImage*)image filePath:(NSString*)filePath;
+- (BOOL) RespGifContent:(UIImage*)image filePath:(NSString*)filePath ;
+@end

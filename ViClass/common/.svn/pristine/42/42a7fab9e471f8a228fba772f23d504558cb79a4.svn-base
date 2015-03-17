@@ -1,0 +1,18 @@
+// You need this in your main project to localize standard text (delete,cancel, ...)/* Browser */
+"OK" = "确定";
+"Cancel" = "取消";
+"Close" = "关闭";
+"Error" = "错误";
+"Add bookmark" = "添加到书签";
+"Open with Safari" = "使用Safari打开";
+"Mail Link to this Page" = "使用邮件发送该页面链接";
+"Print" = "打印";
+"Add as Homepage" = "添加为主页";
+"Open" = "打开";
+"Copy" = "拷贝";
+"Failed sending email, please try again..." = "发送邮件失败，请稍候再试...";
+
+/* Bookmarks */
+"Bookmarks" = "书签";
+"Add Bookmark" = "添加到书签";
+"Edit Bookmark" = "编辑书签";

@@ -1,0 +1,98 @@
+//
+//  BaseNavigationController.m
+//  GHSidebarNav
+//
+//  Created by yulong chen on 12-12-21.
+//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//
+
+#import "BaseNavigationController.h"
+#import "GlobalValues.h"
+#import <QuartzCore/QuartzCore.h>
+
+@interface BaseNavigationController ()
+@end
+
+@implementation BaseNavigationController
+@synthesize parentController=_parentController;
+
+- (BOOL)containmentAPISupported {
+    // containment API is supported on iOS 5 and up
+    return kSystemVersion>=5.0?YES:NO;
+}
+
+-(void) pushViewController:(UIViewController *)viewController animated:(BOOL)animated{
+//    NSLog(@"BaseNavigation:%@",self);
+//    NSLog(@"viewController:%@",viewController);
+    [super pushViewController:viewController animated:animated];
+    if (self.viewControllers.count==2) {
+        if (self.parentController) {
+            [_parentController viewWillDisappear:NO];
+        }
+    }
+//    NSLog(@"ParentController:%@",_parentController);
+}
+
+-(UIViewController*) popViewControllerAnimated:(BOOL)animated{
+    UIViewController *controller = [super popViewControllerAnimated:animated];
+    if (self.viewControllers.count==1) {
+        if (self.parentController) {
+            [_parentController viewWillAppear:NO];
+        }
+    }
+//    NSLog(@"ParentController:%@",_parentController);
+    return controller;
+}
+////移除子视图
+//-(void) removeChildController:(UIViewController*)childViewController{
+//    if (childViewController) {
+//        if ([self containmentAPISupported]) {
+//            [childViewController removeFromParentViewController];
+//        }else {
+//            [childViewController.view removeFromSuperview];
+//        }
+//    }
+//}
+
+
+
+//Called just before the view controller is added or removed from a container view controller.
+-(void) willMoveToParentViewController:(UIViewController *)parent{
+    if ([self containmentAPISupported]) {
+        [super willMoveToParentViewController:parent];
+    }else {
+        
+    }
+}
+
+//Called after the view controller is added or removed from a container view controller.
+-(void) didMoveToParentViewController:(UIViewController *)parent{
+    self.parentController=parent;
+    if ([self containmentAPISupported]) {
+        [super didMoveToParentViewController:parent];
+    }else {
+        
+    }
+}
+
+//Removes the receiver from its parent in the view controller hierarchy.
+-(void) removeFromParentViewController{
+    self.parentController=nil;
+    if ([self containmentAPISupported]) {
+        [super removeFromParentViewController];
+    }else {
+        [self.view removeFromSuperview];
+    }
+}
+
+-(void) didReceiveMemoryWarning{
+    NSLog(@"%@ didReceiveMemoryWarning",self);
+}
+
+- (void)dealloc
+{
+    NSLog(@"%@ dealloced",self);
+    [super dealloc];
+}
+
+@end

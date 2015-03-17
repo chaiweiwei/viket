@@ -1,0 +1,41 @@
+//
+//  OpenApiUserBean.m
+//  OpenApi
+//
+//  Created by yulong chen on 12-12-29.
+//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//
+
+#import "OpenApiUserBean.h"
+
+@implementation OpenApiUserBean
+@synthesize appKey=_appKey;
+@synthesize appSecret=_appSecret;
+@synthesize userId=_userId;
+@synthesize screenName=_screenName;
+@synthesize accessToken=_accessToken;
+@synthesize refreshToken=_refreshToken;
+@synthesize expireTime=_expireTime;
+@synthesize openKey=_openKey;
+@synthesize accessSecret=_accessSecret;
+
+@synthesize avatar=_avatar;
+@synthesize location=_location;
+
+@synthesize apiType=_apiType;
+
+- (void)dealloc
+{
+    [_appKey release];
+    [_appSecret release];
+    [_userId release];
+    [_screenName release];
+    [_accessToken release];
+    [_accessSecret release];
+    [_refreshToken release];
+    [_openKey release];
+    [_avatar release];
+    [_location release];
+    [super dealloc];
+}
+@end

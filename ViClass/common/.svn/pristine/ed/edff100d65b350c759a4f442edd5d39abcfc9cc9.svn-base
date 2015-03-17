@@ -1,0 +1,27 @@
+//
+//  LoginCustomViewController.h
+//  OpenApi
+//
+//  Created by aaa a on 13-1-19.
+//  Copyright (c) 2013年 qw. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import "OpenApiHttpClient.h"
+#import "OpenApiUtils.h"
+#import "BaseViewController.h"
+
+@interface LoginCustomViewController : BaseViewController<UITableViewDataSource,UITableViewDelegate,UITextFieldDelegate,ALDDataLoadStateDelegate>{
+    BOOL _isLoginOk;
+    UINavigationBar *_navBar; //No Retain
+}
+
+@property (retain,nonatomic)UITextField *userNameText;
+@property (retain,nonatomic)UITextField *pwdText;
+@property (retain,nonatomic)UITableView *tableview1;
+@property (assign,nonatomic) id<OpenApiDelegate> delegate;
+@property (nonatomic) BOOL isMode;
+@property (retain,nonatomic) NSString *appSn;
+@property (retain,nonatomic) NSString *serverUrl;
+
+@end

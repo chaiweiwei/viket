@@ -1,0 +1,720 @@
+//
+//  WeiBosendViewController.m
+//  hyt_ios
+//
+//  Created by aaa a on 12-4-20.
+//  Copyright (c) 2012年 qw. All rights reserved.
+//
+
+#import "WeiBosendViewController.h"
+#import <QuartzCore/QuartzCore.h>
+#import "ALDUtils.h"
+#import "WBTecentEngine.h"
+#import "WBSinaEngine.h"
+#import "WBWyEngine.h"
+#import "ALDButton.h"
+#import "UIGlossyButton.h"
+#import "ALDImageView.h"
+#import "OpenApiLocalizedString.h"
+#import "StringUtil.h"
+#import "UIBarButtonItem+ALDBackBarButtonItem.h"
+
+@interface WeiBosendViewController (private)
+
+@end
+
+@implementation WeiBosendViewController
+@synthesize textview=_textview;
+//@synthesize textview2;
+@synthesize weiboType=_weiboType;
+@synthesize picture=_picture;
+@synthesize content=_content,action=_action,weiboId=_weiboId,toppics=_toppics;
+@synthesize engine=_engine;
+
+@synthesize appkey=_appkey,appSecret=_appSecret;
+@synthesize redirectUrl=_redirectUrl;
+@synthesize delegate=_delegate;
+@synthesize isMode=_isMode;
+@synthesize detailUrl=_detailUrl;
+
+#define kTagOffSet 1000
+
+- (void)viewWillAppear:(BOOL)animated{
+    self.navigationController.navigationBarHidden =NO;  
+    [_textview becomeFirstResponder];
+    [super viewWillAppear:animated];
+}
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        self.weiboType=TypeSinaWeibo;
+    }
+    return self;
+}
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        // Custom initialization
+    }
+    return self;
+}
+
+- (void)didReceiveMemoryWarning
+{
+    // Releases the view if it doesn't have a superview.
+    NSLog(@"WeibosendController didReceiveMemoryWarning");
+    [super didReceiveMemoryWarning];
+    
+    // Release any cached data, images, etc that aren't in use.
+}
+
+#pragma mark - View lifecycle
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    if (!self.title || [self.title isEqualToString:@""]) {
+        self.title=OpenApiLocalizedString(@"微博分享",@"weibo_share",@"");
+    }
+    
+    BOOL isIos7=isIOS7;
+    if (self.navigationController && !isIos7 && [self.navigationController viewControllers].count>1) {
+        UIBarButtonItem *leftBtn=[[UIBarButtonItem alloc] initBackButtonWithTitle:ALDLocalizedString(@"Back", @"返回") color:kNavigationBarTextColor target:self action:@selector(rightClicked)];
+        self.navigationItem.leftBarButtonItem=leftBtn;
+        ALDRelease(leftBtn);
+    }
+    if (isIos7) {
+        self.extendedLayoutIncludesOpaqueBars = NO;
+        self.modalPresentationCapturesStatusBarAppearance =NO;
+        self.edgesForExtendedLayout = UIRectEdgeNone;
+    }
+    
+    WBEngine *engine = nil;
+    self.action=kFasong;
+    ALDButton *button=[[ALDButton alloc]initWithFrame:CGRectMake(0, 0, 48, 30)];
+    if (_weiboType==TypeTecentWeibo) {
+        [button setTitle:OpenApiLocalizedString(@"广播",@"broadcast",@"") forState:UIControlStateNormal];
+        engine=[[WBTecentEngine alloc] initWithAppKey:_appkey appSecret:_appSecret];
+    }else if (_weiboType==TypeWyWeibo) {
+        [button setTitle:OpenApiLocalizedString(@"广播",@"broadcast",@"") forState:UIControlStateNormal];
+        engine=[[WBWyEngine alloc] initWithAppKey:_appkey appSecret:_appSecret];
+    } else {
+        [button setTitle:OpenApiLocalizedString(@"发送",@"send",@"")  forState:UIControlStateNormal];
+        engine=[[WBSinaEngine alloc] initWithAppKey:_appkey appSecret:_appSecret];
+    }
+    button.tag=1;
+    [button addTarget:self action:@selector(send:) forControlEvents:UIControlEventTouchUpInside];
+    UIBarButtonItem *rightItem=[[UIBarButtonItem alloc]initWithCustomView:button];
+    [button release];
+    
+    [engine setRootViewController:self];
+    MyWBEngineDelegate *weiboDelegate=[[MyWBEngineDelegate alloc] init ];
+    weiboDelegate.delegate=self;
+    [engine setDelegate:weiboDelegate];
+    [weiboDelegate release];
+    [engine setRedirectURI:_redirectUrl];
+    [engine setIsUserExclusive:NO];
+    self.engine = engine;
+    [engine release];
+    
+//    self.view.backgroundColor=[UIColor colorWithPatternImage:[UIImage imageNamed:@"bg_index.png"]];
+    CGFloat startY=0;
+    if (!self.navigationController) {
+        _navBar=[self createTitleBar:rightItem];
+        [self.view addSubview:_navBar];
+        startY=_navBar.frame.size.height;
+    }else {
+        self.navigationItem.rightBarButtonItem = rightItem;
+        if (_isMode) {
+            button=[[ALDButton alloc]initWithFrame:CGRectMake(0, 0, 48, 30)];
+            [button setTitle:OpenApiLocalizedString(@"取消",@"cancel",@"") forState:UIControlStateNormal];
+            button.tag=2;
+            [button addTarget:self action:@selector(rightClicked) forControlEvents:UIControlEventTouchUpInside];
+            UIBarButtonItem *leftItem=[[UIBarButtonItem alloc]initWithCustomView:button];
+            self.navigationItem.rightBarButtonItem=leftItem;
+            [button release];
+            [leftItem release];
+        }
+    }
+    [rightItem release];
+    
+    startY+=10;
+    _myview=[[UIView alloc]initWithFrame:CGRectMake(5,startY,310,400)];
+    _myview.backgroundColor=[UIColor clearColor];
+//    _myview.layer.shadowOpacity = 0.2;
+    _myview.layer.borderColor = [UIColor colorWithRed:218/255.f green:215/255.f blue:215/255.f alpha:1].CGColor;
+    _myview.layer.borderWidth =1.0;
+    _myview.layer.cornerRadius =4.0;
+    //_myview.autoresizingMask=UIViewAutoresizingFlexibleHeight;
+    CGFloat textHeight=_myview.frame.size.height;
+    UITextView *textview=[[UITextView alloc]initWithFrame:CGRectMake(0, 0, 310, textHeight)];
+    textview.delegate=self;
+    //设置成圆角
+    textview.backgroundColor = [UIColor clearColor];
+    textview.font = [UIFont systemFontOfSize:14];
+    textview.textAlignment = TEXT_ALIGN_LEFT;
+    textview.returnKeyType = UIReturnKeyDefault;//返回键的类型  
+    textview.keyboardType = UIKeyboardTypeDefault;//键盘类型  
+    textview.scrollEnabled = YES;//是否可以拖动   
+    textview.tag=101;
+    [textview becomeFirstResponder];
+    self.textview=textview;
+    [_myview addSubview:textview];
+    [textview release];
+    
+    startY+=_myview.frame.size.height;
+
+    UIView *toolBar=[[[UIView alloc] initWithFrame:CGRectMake(5, startY, 310, 50)] autorelease];
+    toolBar.tag=102;
+    _toolBar=toolBar;
+    [self.view addSubview:toolBar];
+    
+    [self.view addSubview:_myview];
+    
+    _content=[[self createContent:_content url:_detailUrl] retain];
+    
+    if(self.content && ![self.content isEqualToString:@""]){
+        textview.text=self.content;
+    }else{
+        if (_toppics && ![_toppics isEqualToString:@""]) {
+            textview.text=[NSString stringWithFormat:@"#%@#",_toppics];
+        }
+    }
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillShow:) name:UIKeyboardWillShowNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillHide:) name:UIKeyboardWillHideNotification object:nil];
+    
+    [self layoutButtons];
+}
+
+-(void) setContent:(NSString *)content{
+    if (_content) {
+        [_content release],_content=nil;
+    }
+    
+    if ([self isViewLoaded]) {
+        _content=[self createContent:content url:_detailUrl];
+    }else{
+        _content=[content retain];
+    }
+}
+
+-(void) setDetailUrl:(NSString *)detailUrl{
+    if (_detailUrl) {
+        [_detailUrl release],_detailUrl=nil;
+    }
+    
+    if ([self isViewLoaded]) {
+        _content=[self createContent:_content url:detailUrl];
+    }else{
+        _detailUrl=[detailUrl retain];
+    }
+}
+
+-(int) captureTextCount:(NSString *)text{
+    NSInteger len=text.length;
+    int count=0;
+    for (int i=0; i<len; i++) {
+        int c=[text characterAtIndex:i];
+        if (c>255) {
+            count+=2;
+        }else {
+            count+=1;
+        }
+    }
+    return count;
+}
+
+-(NSString*) cutTextWithText:(NSString*) text maxCount:(int) maxCount{
+    NSInteger len=text.length;
+    int currCount=0;
+    int subStringIndex=0;
+    for (int i=0; i<len; i++) {
+        int c=[text characterAtIndex:i];
+        if (c>255) {
+            currCount+=2;
+        }else {
+            currCount+=1;
+        }
+        if (currCount>maxCount) {
+            break;
+        }
+        subStringIndex++;
+    }
+    
+    return [text substringToIndex:subStringIndex];
+}
+
+-(NSString*) createContent:(NSString*) text url:(NSString*) url{
+    if (![NSString isEmpty:text] && ![NSString isEmpty:url]) {
+        url=[NSString stringWithFormat:@"%@:%@",OpenApiLocalizedString(@"详情",@"Details",@""),url];
+        int count=[self captureTextCount:url];
+        int textCount=[self captureTextCount:text];
+        NSString *result=nil;
+        if ((count+textCount)<kMaxContentCount) {
+            result=[NSString stringWithFormat:@"%@%@",text,url];
+        }else{
+            NSString *temp=[self cutTextWithText:text maxCount:(kMaxContentCount-3-count)];
+            result=[NSString stringWithFormat:@"%@...%@",temp,url];
+        }
+        return result;
+    }else if (![NSString isEmpty:text]){
+        int textCount=[self captureTextCount:text];
+        NSString *result=nil;
+        if (textCount>kMaxContentCount) {
+            result=text;
+        }else{
+            NSString *temp=[self cutTextWithText:text maxCount:(kMaxContentCount-3)];
+            result=[NSString stringWithFormat:@"%@...",temp];
+        }
+        return result;
+    }else if (![NSString isEmpty:url]){
+        return [NSString stringWithFormat:@"%@:%@",OpenApiLocalizedString(@"详情",@"Details",@""),url];
+    }
+    return nil;
+}
+
+-(void) rightClicked{
+    if ([_delegate respondsToSelector:@selector(response:openApiDidFailWithError:)])
+    {
+        NSError *error=[NSError errorWithDomain:@"User canceled" code:21330 userInfo:nil];
+        [_delegate response:_engine openApiDidFailWithError:error];
+    }
+
+    if (self.isMode) {
+        [self dismissViewControllerAnimated:YES completion:nil];
+    }else {
+        [self.navigationController popViewControllerAnimated:YES];
+    }
+}
+
+-(UINavigationBar *) createTitleBar:(UIBarButtonItem*)rightItem{
+    NSString *title=self.title;
+    UINavigationBar *navBar=[[UINavigationBar alloc] initWithFrame:CGRectMake(0, 0, self.view.bounds.size.width, 44)];
+    navBar.barStyle=UIBarStyleBlackTranslucent;
+    UINavigationItem *navItem=[[UINavigationItem alloc] initWithTitle:title];
+    UIBarButtonItem *rightBtn=[[UIBarButtonItem alloc]initWithTitle:OpenApiLocalizedString(@"取消",@"cancel",@"") style:UIBarButtonItemStyleBordered target:self action:@selector(rightClicked)];
+    navItem.leftBarButtonItem=rightBtn;
+    [rightBtn release];
+    navItem.rightBarButtonItem=rightItem;
+    [navBar pushNavigationItem:navItem animated:YES];
+    [navItem release];
+    return [navBar autorelease];
+}
+
+-(void) setTitle:(NSString *)title{
+    if (_navBar) {
+        _navBar.topItem.title=title;
+    }else {
+        [super setTitle:title];
+    }
+}
+
+-(NSString*) title{
+    if (_navBar) {
+        return _navBar.topItem.title;
+    }else {
+        return [super title];
+    }
+}
+
+-(void) layoutButtons{
+    NSArray *views=[_toolBar subviews];
+    for (UIView *view in views) {
+        [view removeFromSuperview];
+    }
+    NSArray *btnTexts=[NSArray arrayWithObjects:OpenApiLocalizedString(@"拍照",@"photo",@""),OpenApiLocalizedString(@"相册",@"picture",@"")/*,@"主题",@"表情"*/, nil];
+    int count=btnTexts.count;
+    CGFloat width;
+    if (_picture) {
+        width=(_toolBar.bounds.size.width-64)/count;
+    }else {
+        width=_toolBar.bounds.size.width/count;
+    }
+//    for (int i=0; i<count; i++) {
+//        UIGlossyButton *button = [[UIGlossyButton alloc] init];
+//        button.frame=CGRectMake(width*i+1, 0, width-1, 37);
+//        button.tag=kTagOffSet+i;
+//        button.buttonBorderWidth = 0.0f;
+//        button.buttonCornerRadius = 0.0f;
+//        button.tintColor=[UIColor navigationBarButtonColor];
+//        [button setTitle:[btnTexts objectAtIndex:i] forState:UIControlStateNormal];
+//        [button addTarget:self action:@selector(BTPressed:) forControlEvents:UIControlEventTouchUpInside];
+//        [_toolBar addSubview:button];
+//        [button release];
+//    }
+    
+    if (_picture) {
+        UIGlossyButton *button = [[UIGlossyButton alloc] init];
+        button.frame=CGRectMake(width*count+1, 0, 62, 50);
+        button.tag=kTagOffSet+4;
+        button.buttonBorderWidth = 0.0f;
+        button.buttonCornerRadius = 0.0f;
+        [button setBackgroundImage:_picture forState:UIControlStateNormal];
+        [button addTarget:self action:@selector(BTPressed:) forControlEvents:UIControlEventTouchUpInside];
+        [_toolBar addSubview:button];
+        [button release];
+    }
+}
+
+#pragma mark -
+#pragma mark Responding to keyboard events
+- (void)keyboardWillShow:(NSNotification *)notification {
+    NSDictionary *userInfo = [notification userInfo];
+    // Get the origin of the keyboard when it's displayed.
+    NSValue* aValue = [userInfo objectForKey:UIKeyboardFrameEndUserInfoKey];
+    
+    // Get the top of the keyboard as the y coordinate of its origin in self's view's coordinate system. The bottom of the text view's frame should align with the top of the keyboard's final position.
+    CGRect keyboardRect = [aValue CGRectValue];
+    // Animate the resize of the text view's frame in sync with the keyboard's appearance.
+    [self moveInputBarWithKeyboardHeight:keyboardRect.size.height];
+}
+
+
+- (void)keyboardWillHide:(NSNotification *)notification {
+    [self moveInputBarWithKeyboardHeight:0.0];
+}
+
+-(void) moveInputBarWithKeyboardHeight:(CGFloat) height{
+    //NSLog(@"height:%f",height); keybord height=216
+    CGFloat selfViewH=340;//self.view.frame.size.height;
+    CGFloat viewHeight=selfViewH-height;
+    CGRect frame=_myview.frame;
+    frame.size.height=viewHeight;
+    _myview.frame=frame;
+    CGRect textFrame=_textview.frame;
+    textFrame.size.height=viewHeight;
+    _textview.frame=textFrame;
+   
+    CGFloat startY=frame.origin.y+frame.size.height;
+    UIView *toolBar=[self.view viewWithTag:102];
+    CGRect toolFrame=toolBar.frame;
+    toolFrame.origin.y=startY;
+    toolBar.frame=toolFrame;
+}
+
+//在点击文本后调用这个方法，返回no不允许对文本进行编辑，键盘也不会弹出。
+- (BOOL)textViewShouldBeginEditing:(UITextView *)textView{
+	
+	[UIView beginAnimations:nil context:NULL];
+    [UIView setAnimationDuration:0.3];
+    [UIView setAnimationDelegate:self];
+    //self.view.center = CGPointMake(160, 100);
+    [UIView commitAnimations];
+    
+    return YES;
+}
+
+//请求取消第一响应者后调用，yes可以取消第一响应者，no不可以，键盘也不会消失
+- (BOOL)textViewShouldEndEditing:(UITextView *)textView{
+    
+    [UIView beginAnimations:nil context:NULL];
+    [UIView setAnimationDuration:0.3];
+    [UIView setAnimationDelegate:self];
+    //self.view.center = CGPointMake(160, 200);
+    [UIView commitAnimations];
+
+	return YES;
+}
+
+- (void)textViewDidBeginEditing:(UITextView *)textView{
+//    
+//    UIBarButtonItem *done = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemDone target:self action:@selector(leaveEditMode)];  
+//    self.navigationItem.rightBarButtonItem = done; 
+//    [done release];
+//    
+}
+
+
+
+//取消键盘后文本框停留的位置
+- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event{
+	[_textview resignFirstResponder];
+	//self.view.center = CGPointMake(160, 200);
+	
+}
+
+//取消、出现键盘第一反应
+- (void)textViewDidEndEditing:(UITextView *)textView{	
+	[textView resignFirstResponder];
+}
+
+- (void)leaveEditMode {    
+     [self.textview resignFirstResponder]; 
+}
+
+-(void) send:(id) sender{
+    NSString *text=_textview.text;
+    int count=[ALDUtils captureTextCount:text];
+    if (count>140) {
+        [ALDUtils showToast:OpenApiLocalizedString(@"输入内容超过了%@个字，请删减.",@"Character is more than %@", [NSString stringWithFormat:@"%d",(count-140)])];
+        return;
+    }
+    
+    if (_action!=kFasong&&_action!=kZhuanfa&&_action!=kPinglun) {
+        [ALDUtils showToast:self.view withText:OpenApiLocalizedString(@"无法识别的操作", @"Unrecognized operation",@"")];
+        return;
+    }
+    if (_action==kFasong) {
+        if (count<1) {
+            [ALDUtils showToast:OpenApiLocalizedString(@"微博内容不能为空.",@"EmptyContent",@"")];
+            return;
+        }
+    }
+    [self.textview resignFirstResponder]; 
+    [ALDUtils addWaitingView:self.view withText:OpenApiLocalizedString(@"发送中，请稍后...", @"sending",@"")];
+    if (![_engine isLoggedIn] || [_engine isAuthorizeExpired]){
+        [_engine logIn];
+        return ;
+    }
+    if (_action==kFasong) {
+        [_engine sendWeiBoWithText:text image:_picture lat:nil lng:nil];
+    }else if (_action==kZhuanfa) {
+        [_engine repostWeiboWithText:text weibId:_weiboId];
+    }else if(_action==kPinglun){
+        [_engine commentsWeiboWithText:text weiboId:_weiboId];
+    }else{
+        [ALDUtils showToast:self.view withText:OpenApiLocalizedString(@"无法识别的操作", @"Unrecognized operation",@"")];
+    }
+}
+
+-(void)BTPressed:(id)sender{
+    [self.textview resignFirstResponder]; 
+     UIView *button = (UIView *)sender;
+    int tag=button.tag-kTagOffSet;
+    switch (tag) {
+        case 0:{ //拍照
+            [self takePhoto];
+        }
+            break;
+        case 1:{ //相册
+            [self LocalPhoto];
+        }
+            break;
+        case 2:{ //主题
+            [ALDUtils showToast:OpenApiLocalizedString(@"主题", @"topic",@"")];
+        }
+            break;
+        case 3:{ //表情
+            [ALDUtils showToast:OpenApiLocalizedString(@"表情", @"phiz",@"")];
+            if (!_faceScrollView) {
+                CGFloat width=_myview.frame.size.width;
+                CGFloat height=_myview.frame.size.height-216;
+                _faceScrollView=[[UIScrollView alloc] initWithFrame:CGRectMake(0, 216, width, height)];
+                [self.view addSubview:_faceScrollView];
+            }
+        }
+            break;
+        case 4:{ //大图
+            ImageViewController *controller=[[ImageViewController alloc] init];
+            controller.photo=_picture;
+            controller.delegate=self;
+            [self presentViewController:controller animated:YES completion:nil];
+            [controller release];
+        }
+            break;
+        default:
+            break;
+    }
+}
+
+//开始拍照
+-(void)takePhoto
+{
+    UIImagePickerControllerSourceType sourceType = UIImagePickerControllerSourceTypeCamera; 
+    if ([UIImagePickerController isSourceTypeAvailable: UIImagePickerControllerSourceTypeCamera]) 
+    {
+        UIImagePickerController *picker = [[UIImagePickerController alloc] init]; 
+        picker.delegate = self; 
+        //设置拍照后的图片可被编辑
+        picker.allowsEditing = YES; 
+        picker.sourceType = sourceType;
+        [self presentViewController:picker animated:YES completion:nil];
+        [picker release]; 
+    }else {
+        [ALDUtils showToast:OpenApiLocalizedString(@"抱歉，你的手机不支持拍照!",@"not support photo",@"")];
+    }  
+}
+
+//打开本地相册
+-(void)LocalPhoto
+{
+    UIImagePickerController *picker = [[UIImagePickerController alloc] init];
+    
+    picker.sourceType = UIImagePickerControllerSourceTypePhotoLibrary;
+    picker.delegate = self;
+    //设置选择后的图片可被编辑
+    picker.allowsEditing = YES;
+    [self presentViewController:picker animated:YES completion:nil];
+    [picker release];
+}
+
+//当选择一张图片后进入这里
+-(void)imagePickerController:(UIImagePickerController*)picker didFinishPickingMediaWithInfo:(NSDictionary *)info
+
+{    
+    NSString *type = [info objectForKey:UIImagePickerControllerMediaType];
+    
+    //当选择的类型是图片
+    if ([type isEqualToString:@"public.image"])
+    {
+        //先把图片转成NSData
+        UIImage* image = [info objectForKey:@"UIImagePickerControllerOriginalImage"];
+        
+        //关闭相册界面
+        [picker dismissViewControllerAnimated:YES completion:nil];
+        //创建一个选择后图片的小图标放在下方
+        
+        self.picture=image;
+        [self layoutButtons];
+        //是否要保存,如何上传到后台？？？
+        
+    } 
+    
+}
+
+- (void)imagePickerControllerDidCancel:(UIImagePickerController *)picker
+{
+    NSLog(@"您取消了选择图片");
+    [picker dismissViewControllerAnimated:YES completion:nil];
+}
+
+- (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
+{
+    // Return YES for supported orientations
+    return (interfaceOrientation == UIInterfaceOrientationPortrait);
+}
+
+-(void) openApiLoginFailed:(NSError *)error{
+    if (_delegate && [_delegate respondsToSelector:@selector(openApiLoginFailed:)]) {
+        [_delegate openApiLoginFailed:error];
+    }
+}
+
+-(void) openApiLoginSuccessed:(OpenApiUserBean *)user{
+    if (_delegate && [_delegate respondsToSelector:@selector(openApiLoginSuccessed:)]) {
+        [_delegate openApiLoginSuccessed:user];
+    }
+    NSString *text=_textview.text;
+    [self send:text];
+}
+
+/**
+ * 发送微博失败
+ **/
+-(void) response:(WBEngine *)engine openApiDidFailWithError:(NSError *)error{
+    [ALDUtils removeWaitingView:self.view];
+    if (error && error.code==21330) {
+        NSLog(@"用户取消授权...");
+    }if (error) {
+        NSDictionary *userInfo=error.userInfo;
+        int error_code=0;
+        if (_weiboType==TypeTecentWeibo) {
+            [[userInfo objectForKey:@"errcode"] intValue];
+        }else {
+            [[userInfo objectForKey:@"error_code"] intValue];
+        }
+//        NSString *text=nil;
+//        if (_action==kFasong) {
+//            text=@"发送微博";
+//        }else if (_action==kZhuanfa) {
+//            text=@"转发微博";
+//        }else if(_action==kPinglun){
+//            text=@"发表评论";
+//        }
+        //20206	：	作者只允许关注用户评论
+        //20207	：	作者只允许可信用户评论
+        if (error_code==20101 || error_code==11) { //源微博不存在
+//            [ALDUtils showToast:[NSString stringWithFormat:@"%@失败，源微博不存在或已删除",text]];
+            [ALDUtils showToast:OpenApiLocalizedString(@"发送失败，稍后再试！",@"send failed",@"")];
+        }else if(error_code==20032 || error_code==12){ //	微博发布成功。目前服务器数据同步可能会有延迟，请耐心等待1-2分钟。谢谢
+//            [ALDUtils showToast:[NSString stringWithFormat:@"%@成功",text]];
+            [ALDUtils showToast:OpenApiLocalizedString(@"发送成功!", @"send ok",@"")];
+        }else if(error_code==20103){ //不能转发自己的微博
+//            [ALDUtils showToast:[NSString stringWithFormat:@"%@失败，不能转发自己的微博.",text]];
+            [ALDUtils showToast:OpenApiLocalizedString(@"发送失败，稍后再试！",@"send failed",@"")];
+        }else if(error_code==20111 || error_code==13){ //不能发布相同的微博
+//            [ALDUtils showToast:[NSString stringWithFormat:@"%@失败，不能发布相同的微博",text]];
+            [ALDUtils showToast:OpenApiLocalizedString(@"发送失败，稍后再试！",@"send failed",@"")];
+        }else if(error_code==20206){ //作者只允许关注用户评论
+//            [ALDUtils showToast:[NSString stringWithFormat:@"%@失败，作者只允许关注用户评论.",text]];
+            [ALDUtils showToast:OpenApiLocalizedString(@"发送失败，稍后再试！",@"send failed",@"")];
+        }else if(error_code==20207){ //作者只允许可信用户评论
+//            [ALDUtils showToast:[NSString stringWithFormat:@"%@失败，作者只允许可信用户评论.",text]];
+            [ALDUtils showToast:OpenApiLocalizedString(@"发送失败，稍后再试！",@"send failed",@"")];
+        }else if(error_code==10022 ||error_code==10023 || error_code==10024 || error_code==10){ //IP请求超过上限，用户请求超过上限，用户请求接口%s超过上限
+            [ALDUtils showToast:OpenApiLocalizedString(@"抱歉，你的操作太频繁，请稍候再试！",@"failed with frequent",@"")];
+        }else {
+//            [ALDUtils showToast:[NSString stringWithFormat:OpenApiLocalizedString(@"发送微博失败，稍后再试...",@"send failed",@""),text]];
+            [ALDUtils showToast:OpenApiLocalizedString(@"发送失败，稍后再试！",@"send failed",@"")];
+            NSLog(@"requestDidFailWithError,error:%@",error);
+        }	
+    }else {
+        [ALDUtils showToast:OpenApiLocalizedString(@"发送失败，稍后再试！",@"send failed",@"")];
+    }
+}
+
+/**
+ *  发送成功
+ */
+-(void) response:(WBEngine *)engine openApiDidSucceedWithResult:(id)result{
+    [ALDUtils removeWaitingView:self.view];
+//    if (_action==kFasong) {
+//        [ALDUtils showToast:@"发送微博成功"];
+//    }else if (_action==kZhuanfa) {
+//        [ALDUtils showToast:@"转发微博成功"];
+//    }else if(_action==kPinglun){
+//        [ALDUtils showToast:@"发表评论成功"];
+//    }
+    [ALDUtils showToast:OpenApiLocalizedString(@"发送成功!", @"send ok",@"")];
+    
+    if ([_delegate respondsToSelector:@selector(response:openApiDidSucceedWithResult:)])
+    {
+        [_delegate response:_engine openApiDidSucceedWithResult:[NSNumber numberWithInt:1]];
+    }
+    
+    if (self.isMode) {
+        [self dismissViewControllerAnimated:YES completion:nil];
+    }else {
+        [self.navigationController popViewControllerAnimated:YES];
+    }
+}
+
+-(void) didSelectOnDelete:(ImageViewController *)imageView{
+    self.picture=nil;
+    [self layoutButtons];
+}
+
+- (void)viewDidUnload
+{
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+    [_myview release],_myview=nil;
+    [_faceScrollView release],_faceScrollView=nil;
+    self.engine=nil;
+    [self setTextview:nil];
+    [super viewDidUnload];
+}
+
+- (void)dealloc {
+    //NSLog(@"WeiBosendViewController dealloced");
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+    [_detailUrl release];
+    [_engine release];
+    [_myview release];
+    [_faceScrollView release];
+    [_content release];
+    [_weiboId release];
+    [_toppics release];
+    [_textview release];
+    
+    [_appkey release];
+    [_appSecret release];
+    [_redirectUrl release];
+    [super dealloc];
+}
+
+@end

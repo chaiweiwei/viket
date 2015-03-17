@@ -1,0 +1,54 @@
+//
+//  ALDBaseWebViewController.m
+//  FunCat
+//  基础WebView控制器
+//  Created by chen yulong on 14/11/10.
+//  Copyright (c) 2014年 skk. All rights reserved.
+//
+
+#import "ALDBaseWebViewController.h"
+
+@interface ALDBaseWebViewController ()<UIWebViewDelegate>
+
+@property (weak,nonatomic) UIWebView *webView;
+
+@end
+
+@implementation ALDBaseWebViewController
+@synthesize webView=_webView;
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    
+    if (isIOS7) {
+        self.extendedLayoutIncludesOpaqueBars             = NO;
+        self.modalPresentationCapturesStatusBarAppearance = NO;
+        self.edgesForExtendedLayout                       = UIRectEdgeTop;
+        self.automaticallyAdjustsScrollViewInsets         = NO;
+    }
+    
+    UIWebView *webView=[[UIWebView alloc] initWithFrame:CGRectZero];
+    webView.delegate=self;
+    webView.autoresizingMask=UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    webView.backgroundColor=[UIColor clearColor];
+    [self.view addSubview:webView];
+    
+    
+}
+
+- (void)didReceiveMemoryWarning {
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+/*
+#pragma mark - Navigation
+
+// In a storyboard-based application, you will often want to do a little preparation before navigation
+- (void)prepareForSegue:(UIStoryboardSegue *)segue sender:(id)sender {
+    // Get the new view controller using [segue destinationViewController].
+    // Pass the selected object to the new view controller.
+}
+*/
+
+@end

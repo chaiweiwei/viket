@@ -1,0 +1,360 @@
+//
+//  WBTecentEngine.m
+//  WeiboApi
+//
+//  Created by yulong chen on 12-8-1.
+//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//
+
+#import "WBTecentEngine.h"
+#import "SFHFKeychainUtils.h"
+#import "WBSDKGlobal.h"
+#import "WBUtil.h"
+#import "TipsUtils.h"
+
+#define kErrorDomain @"WBTecentEngine"
+/*
+ * 用于统计应用来源，其中1.2为版本号
+ */
+#define AppFrom @"ios-sdk1.2"
+
+#define OAuthConsumerKeyKey @"oauth_consumer_key"
+#define OAuthVersionKey @"oauth_version"
+
+#define OAuth2Version @"2.a"
+#define OAuth2TokenKey @"access_token"
+#define OAuth2OpenidKey @"openid"
+#define OAuth2ClientipKey @"clientip"
+#define OAuth2ScopeKey @"scope"
+#define OAuth2ScopeValue @"all"
+
+@interface WBTecentEngine (private)
+- (void) getPublicParams:(NSMutableDictionary *) publicParams;
+@end
+
+@implementation WBTecentEngine
+-(id) init{
+    self=[super init];
+    if (self) {
+        self.weiboType=TypeTecentWeibo;
+        self.keychainPrefix=@"Tecent";
+    }
+    return self;
+}
+
+//- (id)initWithAppKey:(NSString *)theAppKey appSecret:(NSString *)theAppSecret{
+//    if (self = [self init]){
+//        self.appKey = theAppKey;
+//        self.appSecret = theAppSecret;
+//        
+//        [self readAuthorizeDataFromKeychain];
+//    }
+//    return self;
+//}
+
+#pragma mark - WBEngine Private Methods
+/*
+ * 接口请求的公共参数，必须携带
+ */
+- (void) getPublicParams:(NSMutableDictionary *) publicParams {
+    [publicParams setObject:AppFrom forKey:@"appfrom"];
+    NSString *SeqId = [NSString stringWithFormat:@"%u", arc4random() % 9999999 + 123456];
+    [publicParams setObject:SeqId forKey:@"seqid"];
+    [publicParams setObject:kClientIpValue forKey:@"clientip"];
+}
+
+-(NSString *) getRequestUrl:(NSString *)url{
+    NSMutableArray *tmpParamsArray = [NSMutableArray array];
+	[tmpParamsArray addObject:[NSString stringWithFormat:@"%@=%@", OAuthConsumerKeyKey, [appKey URLEncodedString]]];
+    [tmpParamsArray addObject:[NSString stringWithFormat:@"%@=%@", OAuth2TokenKey, [accessToken URLEncodedString]]];
+    [tmpParamsArray addObject:[NSString stringWithFormat:@"%@=%@", OAuth2OpenidKey, [userID URLEncodedString]]];
+    [tmpParamsArray addObject:[NSString stringWithFormat:@"%@=%@", OAuth2ClientipKey, [kClientIpValue URLEncodedString]]];
+    [tmpParamsArray addObject:[NSString stringWithFormat:@"%@=%@", OAuthVersionKey, [OAuth2Version URLEncodedString]]];
+    [tmpParamsArray addObject:[NSString stringWithFormat:@"%@=%@", OAuth2ScopeKey, [OAuth2ScopeValue URLEncodedString]]];
+	NSString *paramsString= [tmpParamsArray componentsJoinedByString:@"&"];
+    
+    return [url stringByAppendingFormat:@"?%@", paramsString];
+}
+
+#pragma mark -override the WBEngine‘s methods
+#pragma mark Request
+/**
+ * 查看用户信息
+ * @param wuid 微博用户id
+ */
+-(void) showUser:(NSString *) wuid{
+    self.requestPath=WeiboRequestPathForShowUser;
+    NSMutableDictionary *params=[NSMutableDictionary dictionary];
+    
+    [params setObject:@"json" forKey:@"format"];
+    NSString *requestMethod=nil;
+    if (!wuid || [wuid isEqualToString:@""]) {
+        requestMethod=@"user/info";
+    }else {
+        [params setObject:wuid forKey:@"fopenid"];
+        requestMethod=@"user/other_info";
+    }
+    requestMethod=[self getRequestUrl:requestMethod];
+    [self getPublicParams:params];
+    
+    [self loadRequestWithMethodName:requestMethod
+                         httpMethod:@"GET"
+                             params:params
+                       postDataType:kWBRequestPostDataTypeNone
+                   httpHeaderFields:nil];
+}
+
+/**
+ * 发送微博
+ * @param text 微博文本内容
+ * @param image 带图片的微博,可空
+ * @param lat 纬度
+ * @param lng 经度
+ **/
+- (void)sendWeiBoWithText:(NSString *)text image:(UIImage *)image lat:(NSString*)lat lng:(NSString*)lng
+{
+    self.requestPath=WeiboRequestPathForFasong;
+    if ((!text || [text isEqualToString:@""]) &&!image) {
+        if ([delegate respondsToSelector:@selector(engine:requestDidFailWithError:)])
+        {
+            NSMutableDictionary *userInfo=[NSMutableDictionary dictionary];
+            [userInfo setObject:[NSNumber numberWithInt:kPARAM_ERROR] forKey:@"errcode"];
+            [userInfo setObject:@"参数错误,微博内容不能为空" forKey:@"msg"];
+            NSError *error=[NSError errorWithDomain:kErrorDomain code:kPARAM_ERROR userInfo:userInfo];
+            [delegate engine:self requestDidFailWithError:error];
+        }
+        return;
+    }
+    NSMutableDictionary *params = [NSMutableDictionary dictionaryWithCapacity:2];
+    [self getPublicParams:params];
+    [params setObject:@"json" forKey:@"format"];  //返回数据格式，json或xml
+    if (text) {
+        [params setObject:text forKey:@"content"];  //要发表的微博内容
+    }
+    //[params setObject:@"0" forKey:@"syncflag"];  //微博同步到空间分享标记（可选，0-同步，1-不同步，默认为0）  
+    if (lat && ![lat isEqualToString:@""]) {
+        [params setObject:lat forKey:@"wei"];  //纬度
+    }
+    if (lng && ![lng isEqualToString:@""]) {
+        [params setObject:lng forKey:@"jing"];  //经度
+    }
+	
+    NSString *requestMethod=nil;
+    if (image && [image isKindOfClass:[UIImage class]])
+    {
+        requestMethod=[self getRequestUrl:@"t/add_pic"];
+		[params setObject:image forKey:@"pic"];
+        [self loadRequestWithMethodName:requestMethod
+                             httpMethod:@"POST"
+                                 params:params
+                           postDataType:kWBRequestPostDataTypeMultipart
+                       httpHeaderFields:nil];
+    }else {
+        requestMethod=[self getRequestUrl:@"t/add"];
+        [self loadRequestWithMethodName:requestMethod
+                             httpMethod:@"POST"
+                                 params:params
+                           postDataType:kWBRequestPostDataTypeNormal
+                       httpHeaderFields:nil];
+    }
+}
+
+/**
+ * 转发微博
+ * @param text 微博内容（若在此处@好友，需正确填写好友的微博账号，而非昵称）
+ * @param 转发微博的id
+ */
+- (void)repostWeiboWithText:(NSString *) text weibId:(NSString *)weiboId{
+    self.requestPath=WeiboRequestPathForZhuanfa;
+    if (!weiboId || [weiboId isEqualToString:@""]) {
+        if ([delegate respondsToSelector:@selector(engine:requestDidFailWithError:)])
+        {
+            NSMutableDictionary *userInfo=[NSMutableDictionary dictionary];
+            [userInfo setObject:[NSNumber numberWithInt:kPARAM_ERROR] forKey:@"errcode"];
+            [userInfo setObject:@"参数错误,转发微博id不能为空" forKey:@"msg"];
+            NSError *error=[NSError errorWithDomain:kErrorDomain code:kPARAM_ERROR userInfo:userInfo];
+            [delegate engine:self requestDidFailWithError:error];
+        }
+        return;
+    }
+    
+    NSMutableDictionary *params=[NSMutableDictionary dictionary];
+    [params setObject:text forKey:@"content"];
+    [params setObject:weiboId forKey:@"reid"];
+    [params setObject:@"json" forKey:@"format"];
+    //[params setObject:@"0" forKey:@"syncflag"];  //微博同步到空间分享标记（可选，0-同步，1-不同步，默认为0）
+    [self getPublicParams:params];
+    NSString *requestMethod=[self getRequestUrl:@"t/re_add"];
+    [self loadRequestWithMethodName:requestMethod
+                         httpMethod:@"POST"
+                             params:params
+                       postDataType:kWBRequestPostDataTypeNormal
+                   httpHeaderFields:nil];
+}
+
+/**
+ * 评论微博
+ * @param text 内容
+ * @param 待评论微博的id
+ */
+-(void) commentsWeiboWithText:(NSString *)text weiboId:(NSString *)weiboId{
+    self.requestPath=WeiboRequestPathForPinglun;
+    if (!weiboId || [weiboId isEqualToString:@""]) {
+        if ([delegate respondsToSelector:@selector(engine:requestDidFailWithError:)])
+        {
+            NSMutableDictionary *userInfo=[NSMutableDictionary dictionary];
+            [userInfo setObject:[NSNumber numberWithInt:kPARAM_ERROR] forKey:@"errcode"];
+            [userInfo setObject:@"参数错误,评论微博id不能为空" forKey:@"msg"];
+            NSError *error=[NSError errorWithDomain:kErrorDomain code:kPARAM_ERROR userInfo:userInfo];
+            [delegate engine:self requestDidFailWithError:error];
+        }
+        return;
+    }
+    if (!text || [text isEqualToString:@""]) {
+        if ([delegate respondsToSelector:@selector(engine:requestDidFailWithError:)])
+        {
+            NSMutableDictionary *userInfo=[NSMutableDictionary dictionary];
+            [userInfo setObject:[NSNumber numberWithInt:kPARAM_ERROR] forKey:@"errcode"];
+            [userInfo setObject:@"参数错误,评论内容不能为空" forKey:@"msg"];
+            NSError *error=[NSError errorWithDomain:kErrorDomain code:kPARAM_ERROR userInfo:userInfo];
+            [delegate engine:self requestDidFailWithError:error];
+        }
+        return;
+    }
+    
+    NSMutableDictionary *params=[NSMutableDictionary dictionary];
+    [params setObject:text forKey:@"content"];
+    [params setObject:weiboId forKey:@"reid"];
+    [params setObject:@"json" forKey:@"format"];
+    //[params setObject:@"0" forKey:@"syncflag"];  //微博同步到空间分享标记（可选，0-同步，1-不同步，默认为0）
+    [self getPublicParams:params];
+    NSString *requestMethod=[self getRequestUrl:@"t/comment"];
+    [self loadRequestWithMethodName:requestMethod
+                         httpMethod:@"POST"
+                             params:params
+                       postDataType:kWBRequestPostDataTypeNormal
+                   httpHeaderFields:nil];
+}
+
+/**
+ * 获取用户微博
+ * @param fopenid	需要查询的用户ID。 name和fopenid至少选一个，若同时存在则以name值为主
+ * @param nick 微博昵称，uid和nick参数必须二选一
+ * @param pagetime 本页起始时间（第一页：填0，向上翻页：填上一次请求返回的第一条记录时间，向下翻页：填上一次请求返回的最后一条记录时间）
+ * @param lastid 用于翻页，和pagetime配合使用（第一页：填0，向上翻页：填上一次请求返回的第一条记录id，向下翻页：填上一次请求返回的最后一条记录id）
+ * @param page  返回结果的页码，默认为1。
+ * @param pagecount 每次请求记录的条数（1-70条）
+ **/
+-(void) readUserTimeline:(NSString *)fopenid nick:(NSString*)nick pagetime:(NSString *)pagetime lastid:(NSString*)lastid page:(int)page pagecount:(int)pagecount{
+    self.requestPath=WeiboRequestPathForOther;
+    NSMutableDictionary *params=[NSMutableDictionary dictionary];
+    //NSLog(@"uid:%@ , nick:%@",uid,nick);
+    NSString *requestMethod=@"statuses/user_timeline";
+    if (nick && ![nick isEqualToString:@""]) {
+        [params setObject:nick forKey:@"name"];
+    }else if (fopenid && ![fopenid isEqualToString:@""]) {
+        [params setObject:fopenid forKey:@"fopenid"];
+    }else {
+        requestMethod=@"statuses/home_timeline";
+    }
+    
+    if (!pagetime || [pagetime isEqualToString:@""]) {
+        pagetime=@"0";
+    }
+    if (!lastid || [lastid isEqualToString:@""]) {
+        lastid=@"0";
+    }
+    int pageflag=0; //分页标识（0：第一页，1：向下翻页，2：向上翻页
+    if (page>1) pageflag=1;
+    if (pagecount<1) pagecount=20;
+    [params setObject:[NSNumber numberWithInt:pageflag] forKey:@"pageflag"];
+    [params setObject:[NSNumber numberWithInt:pagecount] forKey:@"reqnum"];
+    //拉取类型（需填写十进制数字）0x1 原创发表 ,0x2 转载 ,0x8 回复 ,0x10 空回,0x20 提及 ,0x40 点评,如需拉取多个类型请使用|，如(0x1|0x2)得到3，则type=3即可，填零表示拉取所有类型
+    [params setObject:[NSNumber numberWithInt:(0x1|0x2)] forKey:@"type"]; 
+    //内容过滤。0-表示所有类型，1-带文本，2-带链接，4-带图片，8-带视频，0x10-带音频建议不使用contenttype为1的类型，如果要拉取只有文本的微博，建议使用0x80
+    [params setObject:[NSNumber numberWithInt:0] forKey:@"contenttype"];
+    [params setObject:pagetime forKey:@"pagetime"];
+    [params setObject:lastid forKey:@"lastid"];
+    [params setObject:@"json" forKey:@"format"];
+    [self getPublicParams:params];
+    
+    requestMethod=[self getRequestUrl:requestMethod];
+    [self loadRequestWithMethodName:requestMethod
+                         httpMethod:@"GET"
+                             params:params
+                       postDataType:kWBRequestPostDataTypeNone
+                   httpHeaderFields:nil];
+}
+
+
+
+/**
+ * 收听某用户
+ * @param uids 你需要收听的用户openid列表，用下划线“_”隔开，（可选，最多30个）name和fopenids至少选一个，若同时存在则以name值为主
+ * @param name 要收听人的微博帐号列表（非昵称），用“,”隔开，例如：abc,bcde,effg（可选，最多30个）
+ **/
+-(void) friendshipsCreate:(NSString *) uids screenName:(NSString*) name{
+    self.requestPath=WeiboRequestPathForCreateFreinds;
+    if ((!uids || [uids isEqualToString:@""]) && (!name || [name isEqualToString:@""])) {
+        if ([delegate respondsToSelector:@selector(engine:requestDidFailWithError:)])
+        {
+            NSMutableDictionary *userInfo=[NSMutableDictionary dictionary];
+            [userInfo setObject:[NSNumber numberWithInt:kPARAM_ERROR] forKey:@"errcode"];
+            [userInfo setObject:@"参数错误,待关注用户不能为空" forKey:@"msg"];
+            NSError *error=[NSError errorWithDomain:kErrorDomain code:kPARAM_ERROR userInfo:userInfo];
+            [delegate engine:self requestDidFailWithError:error];
+        }
+        return;
+    }
+    NSMutableDictionary *params=[NSMutableDictionary dictionary];
+    if (name && ![name isEqualToString:@""]) {
+        [params setObject:name forKey:@"name"];
+    }else if(uids && ![uids isEqualToString:@""]) {
+        [params setObject:uids forKey:@"fopenids"];
+    }
+    [params setObject:@"json" forKey:@"format"];
+    [self getPublicParams:params];
+    NSString *requestMethod=[self getRequestUrl:@"friends/add"];
+    
+    [self loadRequestWithMethodName:requestMethod
+                         httpMethod:@"POST"
+                             params:params
+                       postDataType:kWBRequestPostDataTypeNormal
+                   httpHeaderFields:nil];
+}
+
+/**
+ * 收听某用户
+ * @param uids 你需要收听的用户openid列表，用下划线“_”隔开，（可选，最多30个）name和fopenids至少选一个，若同时存在则以name值为主
+ * @param name 要收听人的微博帐号列表（非昵称），用“,”隔开，例如：abc,bcde,effg（可选，最多30个）
+ **/
+-(void) friendshipsDestroy:(NSString *) uids screenName:(NSString*) name{
+    self.requestPath=WeiboRequestPathForDestroyFreinds;
+    if ((!uids || [uids isEqualToString:@""]) && (!name || [name isEqualToString:@""])) {
+        if ([delegate respondsToSelector:@selector(engine:requestDidFailWithError:)])
+        {
+            NSMutableDictionary *userInfo=[NSMutableDictionary dictionary];
+            [userInfo setObject:[NSNumber numberWithInt:kPARAM_ERROR] forKey:@"errcode"];
+            [userInfo setObject:@"参数错误,取消关注用户不能为空" forKey:@"msg"];
+            NSError *error=[NSError errorWithDomain:kErrorDomain code:kPARAM_ERROR userInfo:userInfo];
+            [delegate engine:self requestDidFailWithError:error];
+        }
+        return;
+    }
+    NSMutableDictionary *params=[NSMutableDictionary dictionary];
+    if (name && ![name isEqualToString:@""]) {
+        [params setObject:name forKey:@"name"];
+    }else if(uids && ![uids isEqualToString:@""]) {
+        [params setObject:uids forKey:@"fopenid"];
+    }
+    [params setObject:@"json" forKey:@"format"];
+    [self getPublicParams:params];
+    NSString *requestMethod=[self getRequestUrl:@"friends/del"];
+    
+    [self loadRequestWithMethodName:requestMethod
+                         httpMethod:@"POST"
+                             params:params
+                       postDataType:kWBRequestPostDataTypeNormal
+                   httpHeaderFields:nil];
+}
+@end

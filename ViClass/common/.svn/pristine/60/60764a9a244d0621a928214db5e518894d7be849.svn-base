@@ -1,0 +1,32 @@
+//
+//  OpenApiLoginDelegate.h
+//  OpenApi
+//
+//  Created by yulong chen on 12-12-29.
+//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import "GlobalValues.h"
+#import "OpenApiUserBean.h"
+
+@protocol OpenApiLoginDelegate <NSObject>
+@optional
+/**
+ *  使用开放平台登录成功回调接口
+ *  @param loginType 开放平台类型
+ *  @param user 登录成功返回用户对象
+ **/
+-(void) openApiDidLogin:(OpenApiLoginType) loginType user:(OpenApiUserBean*) user;
+/**
+ *  用户取消登录回调接口
+ *  @param loginType 开放平台类型
+ **/
+-(void) openApiCancelLogin:(OpenApiLoginType) loginType;
+/**
+ *  使用开放平台登录失败回调接口
+ *  @param loginType 开放平台类型
+ *  @param error 错误信息对象
+ **/
+-(void) openApiFailedLogin:(OpenApiLoginType) loginType error:(NSError*) user;
+@end

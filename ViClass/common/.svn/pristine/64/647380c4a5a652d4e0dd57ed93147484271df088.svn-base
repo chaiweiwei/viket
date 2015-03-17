@@ -1,0 +1,315 @@
+//
+//  QQAuthorize.m
+//  OpenApi
+//
+//  Created by yulong chen on 13-1-16.
+//  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+//
+
+#import "QQAuthorize.h"
+#import "WBRequest.h"
+#import "SBJson.h"
+#import "QQAuthViewController.h"
+#import "OpenApiLocalizedString.h"
+#import "StringUtil.h"
+
+#define kQQAuthorizeURL     @"https://graph.qq.com/oauth2.0/authorize"
+#define kQQAccessTokenURL   @"https://graph.qq.com/oauth2.0/me"
+
+//static NSString* kGraphBaseURL = @"https://graph.qq.com/oauth2.0/";
+//static NSString* kRedirectURL = @"www.qq.com";
+//static NSString* kRestserverBaseURL = @"https://graph.qq.com/";
+
+@interface QQAuthorize (Private)
+- (void)requestAccessTokenWithAuthorizeToken:(NSString *)token;
+-(NSMutableDictionary *) getParams:(NSURL *)url;
+@end
+
+@implementation QQAuthorize
+@synthesize appKey;
+@synthesize appSecret;
+@synthesize redirectURI;
+@synthesize request;
+@synthesize rootViewController;
+@synthesize delegate;
+@synthesize permissions=_permissions;
+@synthesize isChangeLogin;
+@synthesize isMode=_isMode;
+@synthesize expireTimeval=_expireTimeval;
+@synthesize accessToken=_accessToken;
+
+#pragma mark - WBAuthorize Life Circle
+
+- (id)initWithAppKey:(NSString *)theAppKey appSecret:(NSString *)theAppSecret
+{
+    if (self = [super init])
+    {
+        self.appKey = theAppKey;
+        self.appSecret = theAppSecret;
+        self.permissions=[NSArray arrayWithObjects:
+                           @"get_user_info",@"get_info",@"add_share", @"add_topic",@"add_one_blog", @"list_album", 
+                           @"upload_pic",@"list_photo", @"add_album", @"check_page_fans",@"get_app_friends",
+                           @"add_t",@"add_pic_t",@"del_t",@"get_repost_list",@"get_info",@"get_other_info",
+                           @"get_fanslist",@"get_idollist",@"add_idol",@"del_idol",@"get_fanslist",@"get_tenpay_addr",nil];
+
+    }
+    
+    return self;
+}
+
+- (void)dealloc
+{
+    //NSLog(@"WBAuthorize dealloc:%@",self);
+    [_permissions release];
+    [_accessToken release];
+    [appKey release], appKey = nil;
+    [appSecret release], appSecret = nil;
+    
+    [redirectURI release], redirectURI = nil;
+    
+    [request setDelegate:nil];
+    [request disconnect];
+    [request release], request = nil;
+    [delegate release];
+    
+    [super dealloc];
+}
+
+#pragma mark - WBAuthorize Private Methods
+//使用token得到openId
+- (void)requestAccessTokenWithAuthorizeToken:(NSString *)token
+{
+    self.accessToken=token;
+    NSMutableDictionary* params = [NSMutableDictionary dictionaryWithObjectsAndKeys:
+                                   token, @"access_token",
+                                   nil];
+
+    [request disconnect];
+    NSString *baseUrl=kQQAccessTokenURL;
+    NSMutableDictionary *httpHeaderFields=[NSMutableDictionary dictionary];
+    [httpHeaderFields setObject:@"TencentConnect" forKey:@"User-Agent"];
+    
+    self.request = [WBRequest requestWithURL:baseUrl
+                                  httpMethod:@"GET"
+                                      params:params
+                                postDataType:kWBRequestPostDataTypeNone
+                            httpHeaderFields:httpHeaderFields 
+                                    delegate:self];
+    
+    [request connect];
+}
+
+-(NSMutableDictionary *) getParams:(NSURL *)url{
+    if(!url || ![url isKindOfClass:[NSURL class]]){
+        return nil;
+    }
+    NSString * query=url.query;
+    if(!query || [query isEqualToString:@""]){
+        NSArray * params=[url.absoluteString componentsSeparatedByString:@"#"];
+        if(params.count>1){
+            query=[params objectAtIndex:1];
+        }
+    }
+    
+    if(!query || [query isEqualToString:@""]){
+        return nil;
+    }
+    
+    //query=[query stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+    NSMutableDictionary *result=[[[NSMutableDictionary alloc] init] autorelease];
+    NSArray *params=[query componentsSeparatedByString:@"&"];
+    for(NSString *str in params){
+        NSArray *tmp=[str componentsSeparatedByString:@"="];
+        if (tmp.count<2) {
+            continue;
+        }
+        NSString *key=[[tmp objectAtIndex:0] stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+        key=[key stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        NSString *value=[[tmp objectAtIndex:1] stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+        value=[value stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        [result setValue:value forKey:key];
+    }
+    return result;
+}
+
+#pragma mark - WBAuthorize Public Methods
+
+- (void)startAuthorize
+{
+    NSMutableDictionary* params = [NSMutableDictionary dictionaryWithObjectsAndKeys:
+                                   @"token", @"response_type",
+                                   appKey, @"client_id",
+                                   @"user_agent", @"type",
+                                   redirectURI, @"redirect_uri",
+                                   @"mobile", @"display",
+								   [NSString stringWithFormat:@"%f",[[[UIDevice currentDevice] systemVersion] floatValue]],@"status_os",
+								   [[UIDevice currentDevice] name],@"status_machine",
+                                   @"v2.0",@"status_version",
+                                   nil];
+    
+//    response_type	必须	授权类型，此值固定为“code”。
+//    client_id	必须	申请QQ登录成功后，分配给应用的appid。
+//    redirect_uri	必须	成功授权后的回调地址，必须是注册appid时填写的主域名下的地址，建议设置为网站首页或网站的用户中心。注意需要将url进行URLEncode。
+//    state	必须	client端的状态值。用于第三方应用防止CSRF攻击，成功授权后回调时会原样带回。请务必严格按照流程检查用户与state参数状态的绑定。
+//    scope	可选	请求用户授权时向用户显示的可进行授权的列表。
+//    可填写的值是【QQ登录】API文档中列出的接口，以及一些动作型的授权（目前仅有：do_like），如果要填写多个接口名称，请用逗号隔开。
+//    例如：scope=get_user_info,list_album,upload_pic,do_like
+//    不传则默认请求对接口get_user_info进行授权。
+//    建议控制授权项的数量，只传入必要的接口名称，因为授权项越多，用户越可能拒绝进行任何授权。
+//    display	可选	 仅PC网站接入时使用。
+//    用于展示的样式。不传则默认展示为PC下的样式。
+//    如果传入“mobile”，则展示为mobile端下的样式。
+//    g_ut
+    
+    if (_permissions != nil) {
+		NSString* scope = [_permissions componentsJoinedByString:@","];
+		[params setValue:scope forKey:@"scope"];
+	}
+    
+    if (isChangeLogin) {
+        [params setObject:[NSString stringWithFormat:@"%ld",(long)[[NSDate date] timeIntervalSince1970]] forKey:@"time"];
+    }
+    NSString *urlString = [WBRequest serializeURL:kQQAuthorizeURL
+                                 params:params
+                             httpMethod:@"GET"];
+    QQAuthViewController *webView=[[QQAuthViewController alloc] init];
+    webView.redirectUri=redirectURI;
+    webView.hidesBottomBarWhenPushed=YES;
+    webView.isMode=self.isMode;
+    [webView setDelegate:self];
+    webView.title=OpenApiLocalizedString(@"QQ授权并登录",@"QQ_auth_title",@"");
+    if (self.isMode) {
+        [rootViewController presentViewController:webView animated:YES completion:nil];
+    }else {
+        UIBarButtonItem *backItem = [[UIBarButtonItem alloc] initWithTitle:@"返回" style:UIBarButtonItemStyleBordered target:nil action:nil];  
+        [rootViewController.navigationItem setBackBarButtonItem:backItem];//修改的是navigationItem  
+        [backItem release];
+        [rootViewController.navigationController pushViewController:webView animated:YES];
+    }
+    [webView loadRequestWithURL:[NSURL URLWithString:urlString]];
+    [webView release];
+}
+
+#pragma mark - WBAuthorizeWebViewDelegate Methods
+
+- (void)authorizeWebView:(WBAuthorizeWebView *)webView didReceiveAuthorizeCode:(NSString *)code
+{
+    if (webView) {
+        [webView hide:YES];
+    }
+    // if not canceled
+    if (![code isEqualToString:@"21330"])
+    {
+        [self requestAccessTokenWithAuthorizeToken:code];
+    }else {
+        if ([delegate respondsToSelector:@selector(authorize:didFailWithError:)])
+        {
+            NSError *error = [NSError errorWithDomain:kWBSDKErrorDomain 
+                                                 code:kWBErrorUserCancel 
+                                             userInfo:[NSDictionary dictionaryWithObject:[NSString stringWithFormat:@"%d", kWBSDKErrorCodeAuthorizeError] 
+                                                                                  forKey:kWBSDKErrorCodeKey]];
+            [delegate authorize:self didFailWithError:error];
+        }
+        [self setDelegate:nil];
+    }
+}
+
+- (void)authorizeWebView:(WBAuthorizeWebView *)webView didReceivedWithRequest:(NSURLRequest *)theRequest{
+    NSURL *url=theRequest.URL;
+    //    NSLog(@"result url:%@",url);
+    if (webView) {
+        [webView hide:YES];
+    }
+    BOOL success = NO;
+    NSDictionary *dict = [self getParams:url];
+    NSString * token = [dict objectForKey:@"access_token"];
+    NSString * expireTime = [dict objectForKey:@"expires_in"];
+    
+    if (expireTime != nil) {
+        _expireTimeval = [expireTime intValue];
+        if (_expireTimeval == 0) {
+            _expireTimeval=7776000;
+        } 
+    } else {
+        _expireTimeval=7776000;
+    }
+    
+    if ((token == (NSString *) [NSNull null]) || (token.length == 0)) {
+        //失败
+    } else {
+        success=YES;
+    }
+    
+    // should not be possible
+    if (!success && [delegate respondsToSelector:@selector(authorize:didFailWithError:)])
+    {
+        NSError *error = [NSError errorWithDomain:kWBSDKErrorDomain 
+                                             code:kWBErrorCodeSDK 
+                                         userInfo:[NSDictionary dictionaryWithObject:[NSString stringWithFormat:@"%d", kWBSDKErrorCodeAuthorizeError] 
+                                                                              forKey:kWBSDKErrorCodeKey]];
+        [delegate authorize:self didFailWithError:error];
+        [self setDelegate:nil];
+    }else if (success){
+        [self requestAccessTokenWithAuthorizeToken:token]; //使用token得到openId
+//        [delegate authorize:self didSucceedWithAccessToken:token userID:userID expiresIn:seconds openKey:openKey];
+    }
+}
+
+#pragma mark - WBRequestDelegate Methods
+
+- (void)request:(WBRequest *)theRequest didFinishLoadingWithResult:(id)result
+{
+    BOOL success = NO;
+    NSDictionary *dict=nil;
+    if ([result isKindOfClass:[NSData class]]) {
+        NSString *responseString = [[[NSString alloc] initWithData:(NSData*)result encoding:NSUTF8StringEncoding] autorelease];
+        if ([[responseString substringToIndex:8] isEqualToString:@"callback"]) {
+            responseString = [responseString substringWithRange:NSMakeRange(10, [responseString length]-13)];
+        }
+//        NSLog(@"responseString:%@",responseString);
+        dict = [responseString strToJSON];
+    }else if ([result isKindOfClass:[NSDictionary class]]) {
+        dict = (NSDictionary *)result;
+    }
+    
+    if ([[dict allKeys] count] == 0) {
+        NSLog(@"received didLoad error");
+        //失败处理
+        [self setDelegate:nil];
+        return;
+    }
+    
+    NSString *token=self.accessToken;
+//    NSString *client_id = [dict objectForKey:@"client_id"];
+    NSString *userID = [dict objectForKey:@"openid"];
+    NSInteger seconds = self.expireTimeval;
+    NSString *openKey= nil;
+    
+    success = token && userID;
+    if (success && [delegate respondsToSelector:@selector(authorize:didSucceedWithAccessToken:userID:expiresIn:openKey:)])
+    {
+        [delegate authorize:self didSucceedWithAccessToken:token userID:userID expiresIn:seconds openKey:openKey];
+    }
+    // should not be possible
+    else if (!success && [delegate respondsToSelector:@selector(authorize:didFailWithError:)])
+    {
+        NSError *error = [NSError errorWithDomain:kWBSDKErrorDomain 
+                                             code:kWBErrorCodeSDK 
+                                         userInfo:[NSDictionary dictionaryWithObject:[NSString stringWithFormat:@"%d", kWBSDKErrorCodeAuthorizeError] 
+                                                                              forKey:kWBSDKErrorCodeKey]];
+        [delegate authorize:self didFailWithError:error];
+    }
+    [self setDelegate:nil];
+}
+
+- (void)request:(WBRequest *)theReqest didFailWithError:(NSError *)error
+{
+    NSLog(@"error:%@",error);
+    if ([delegate respondsToSelector:@selector(authorize:didFailWithError:)])
+    {
+        [delegate authorize:self didFailWithError:error];
+    }
+    [self setDelegate:nil];
+}
+
+@end

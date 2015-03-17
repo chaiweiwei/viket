@@ -1,0 +1,109 @@
+//
+//  ALDSmsPicker.m
+//  hyt_ios
+//
+//  Created by yulong chen on 12-4-24.
+//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//
+
+#import "OpenApiSmsPicker.h"
+#import "ALDUtils.h"
+#import "OpenApiLocalizedString.h"
+
+@interface OpenApiSmsPicker ()
+@property (nonatomic,retain) id<MFMessageComposeViewControllerDelegate> msgdelegate; 
+- (void) alertWithTitle:(NSString *)title msg:(NSString *)msg;
+- (void)displaySMS:(NSString *)message;
+@end
+
+@implementation OpenApiSmsPicker
+@synthesize msgdelegate=_msgdelegate;
+@synthesize rootViewController=_rootViewController;
+@synthesize delegate=_delegate;
+
+
+- (void) alertWithTitle:(NSString *)title msg:(NSString *)msg {
+    UIAlertView*alert = [[UIAlertView alloc] initWithTitle:title message:msg delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil];
+    [alert show];
+    [alert release];
+}
+                         
+#pragma mark -
+#pragma mark SMS
+- (void)displaySMS:(NSString *)message  {
+    MFMessageComposeViewController*picker = [[MFMessageComposeViewController alloc] init];
+    self.msgdelegate=self;
+    picker.messageComposeDelegate= _msgdelegate;
+    picker.navigationBar.tintColor= [UIColor blackColor];
+    picker.body = message; // 默认信息内容
+    // 默认收件人(可多个)
+    //picker.recipients = [NSArray arrayWithObject:@"12345678901", nil];
+    [_rootViewController presentViewController:picker animated:YES completion:nil];
+    [picker release];
+}
+
+- (BOOL)sendsms:(NSString *)message {
+    Class messageClass = (NSClassFromString(@"MFMessageComposeViewController"));
+    
+    if (messageClass != nil) {
+        if ([messageClass canSendText]) {
+            [self displaySMS:message];
+            return YES;
+        } else {
+            [self alertWithTitle:nil msg:OpenApiLocalizedString(@"设备没有短信功能",@"device_not_support",@"")];
+        }
+    } else {
+        [self alertWithTitle:nil msg:OpenApiLocalizedString(@"IOS版本过低，iOS4.0以上才支持程序内发送短信",@"version_too_low",@"")];
+    }
+    return NO;
+}
+
+
+- (void)messageComposeViewController:(MFMessageComposeViewController *)controller 
+                 didFinishWithResult:(MessageComposeResult)result {
+    NSString*msg;
+    BOOL success=NO;
+    NSError *error=nil;
+    switch (result) {
+        case MessageComposeResultCancelled:
+            error=[NSError errorWithDomain:@"user canceled" code:21330 userInfo:nil];
+            msg =OpenApiLocalizedString(@"你已取消短信分享",@"cacel_message",@"");
+            break;
+        case MessageComposeResultSent:
+            success=YES;
+            msg = OpenApiLocalizedString(@"短信分享成功",@"msg_success",@"");
+            //[self alertWithTitle:nil msg:msg];
+            break;
+        case MessageComposeResultFailed:
+            msg =OpenApiLocalizedString(@"短信分享失败",@"msg_failed",@"");
+            error=[NSError errorWithDomain:@"send error" code:-100 userInfo:nil];
+            //[self alertWithTitle:nil msg:msg];
+            break;
+        default:
+            break;
+    }
+    
+    [_rootViewController dismissViewControllerAnimated:YES completion:nil];
+    if (msg) {
+        [ALDUtils showToast:_rootViewController.view withText:msg];
+    }
+    
+    if (success) {
+        if ([_delegate respondsToSelector:@selector(response:openApiDidSucceedWithResult:)]) {
+            [_delegate response:nil openApiDidSucceedWithResult:[NSNumber numberWithInt:1]];
+        }
+    }else {
+        if ([_delegate respondsToSelector:@selector(response:openApiDidFailWithError:)]) {
+            [_delegate response:nil openApiDidFailWithError:error];
+        }
+    }
+    
+    [_msgdelegate release],_msgdelegate=nil;
+}
+
+- (void)dealloc
+{
+    NSLog(@"OpenApiSmsPicker dealloced");
+    [super dealloc];
+}
+@end

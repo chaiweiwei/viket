@@ -1,0 +1,19 @@
+//
+//  NearlyBean.h
+//  OpenApi
+//
+//  Created by aaa a on 13-1-14.
+//  Copyright (c) 2013年 qw. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+
+@interface NearlyBean : NSObject
+/** 用户id **/
+@property (retain,nonatomic) NSString *uid;
+/** 用户昵称 **/
+@property (retain,nonatomic) NSString *userNickName;
+/** 用户头像 **/
+@property (retain,nonatomic) NSString *avatar;
+
+@end

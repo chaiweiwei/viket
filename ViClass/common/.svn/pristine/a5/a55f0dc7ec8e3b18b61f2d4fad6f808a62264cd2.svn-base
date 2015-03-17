@@ -1,0 +1,105 @@
+//
+//  OpenApiUtils.h
+//  OpenApi
+//
+//  Created by yulong chen on 13-1-5.
+//  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import "OpenApiUserBean.h"
+#import "WBEngine.h"
+
+//开放平台类型
+typedef enum {
+    OpenApiOfSWeibo=1, //新浪微博开放平台
+    OpenApiOfTWeibo=2, //腾讯微博开放平台
+    OpenApiOfWyWeibo=3, //网易微博开放平台
+    OpenApiOfWeixin=4, //微信开放平台
+    OpenApiOfQQ=5, //QQ开放平台
+    OpenApiOfTaobao=6, //淘宝开放平台
+    OpenApiOfSms=7, //短信
+} OpenApiPlatform;  
+
+
+@protocol OpenApiDelegate <NSObject>
+@optional
+-(void) openApiLoginFailed:(NSError*) error;
+-(void) openApiLoginSuccessed:(OpenApiUserBean *) user;
+
+/**
+ * 微博请求失败
+ **/
+-(void) response:(WBEngine *)engine openApiDidFailWithError:(NSError *)error;
+
+/**
+ *  微博请求成功
+ */
+-(void) response:(WBEngine *)engine openApiDidSucceedWithResult:(id)result;
+@end
+
+@interface OpenApiUtils : NSObject
+
+/**
+ * 判断开放平台是否已登录
+ * @param platform 开放平台类型
+ * @param appKey  开放平台应用key
+ * @param appSecret 开放平台应用key
+ * @return 如果是则返回OpenApiUserBean对象，否则返回nil
+ **/
++(OpenApiUserBean*) openApiHasLogined:(OpenApiPlatform) platform appKey:(NSString*)appKey appSecret:(NSString*)appSecret;
+
+/**
+ * 使用开放平台登录
+ * @param platform 开放平台类型
+ * @param appKey 开放平台应用key
+ * @param appSecret 开放平台应用secret
+ * @param redirectUrl 开放平台登录回调地址
+ * @param delegate 开放平台登录委托
+ * @param parent 调用者界面，本函数使用modal方式跳转到授权界面
+ * @return 登录结果以委托的形式通知调用者  
+ **/
++(void) loginWithPlatform:(OpenApiPlatform) platform appKey:(NSString*)appKey appSecret:(NSString*)appSecret redirectUrl:(NSString*)redirectUrl delegate:(id<OpenApiDelegate>)delegate parent:(UIViewController*)parent;
+
+/**
+ * 使用开放平台登录
+ * @param platform 开放平台类型
+ * @param appKey 开放平台应用key
+ * @param appSecret 开放平台应用secret
+ * @param redirectUrl 开放平台登录回调地址
+ * @param delegate 开放平台登录委托
+ * @param parent 调用者界面，本函数使用modal方式跳转到授权界面
+ * @param isChange 是否切换微博
+ * @return 登录结果以委托的形式通知调用者  
+ **/
++(void) loginWithPlatform:(OpenApiPlatform) platform appKey:(NSString*)appKey appSecret:(NSString*)appSecret redirectUrl:(NSString*)redirectUrl delegate:(id<OpenApiDelegate>)delegate parent:(UIViewController*)parent isChange:(BOOL)isChange;
+
+/**
+ * 使用开放平台分享内容
+ * @param platform 开放平台类型
+ * @param appKey 开放平台应用key
+ * @param appSecret 开放平台应用secret
+ * @param redirectUrl 开放平台登录回调地址
+ * @param delegate 开放平台登录委托
+ * @param parent 调用者界面，本函数使用modal方式跳转到授权界面
+ * @param content 分享内容
+ * @param pic 图片内容
+ * @return 分享结果以委托的形式通知调用者  
+ **/
++(void) shareWithPlatform:(OpenApiPlatform) platform appKey:(NSString*)appKey appSecret:(NSString*)appSecret redirectUrl:(NSString*)redirectUrl delegate:(id<OpenApiDelegate>)delegate parent:(UIViewController*)parent content:(NSString*)content pic:(UIImage*)pic;
+
+/**
+ * 使用开放平台分享内容
+ * @param platform 开放平台类型
+ * @param appKey 开放平台应用key
+ * @param appSecret 开放平台应用secret
+ * @param redirectUrl 开放平台登录回调地址
+ * @param delegate 开放平台登录委托
+ * @param parent 调用者界面，本函数使用modal方式跳转到授权界面
+ * @param content 分享内容
+ * @param detailUrl 详情url
+ * @param pic 图片内容
+ * @return 分享结果以委托的形式通知调用者
+ **/
++(void) shareWithPlatform:(OpenApiPlatform) platform appKey:(NSString*)appKey appSecret:(NSString*)appSecret redirectUrl:(NSString*)redirectUrl delegate:(id<OpenApiDelegate>)delegate parent:(UIViewController*)parent content:(NSString*)content detailUrl:(NSString*)detailUrl pic:(UIImage*)pic;
+@end

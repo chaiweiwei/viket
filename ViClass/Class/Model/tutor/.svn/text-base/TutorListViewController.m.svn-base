@@ -1,0 +1,265 @@
+//
+//  TutorListViewController.m
+//  WeTalk
+//
+//  Created by x-Alidao on 14/12/4.
+//  Copyright (c) 2014年 skk. All rights reserved.
+//
+
+#import "TutorListViewController.h"
+#import "ALDImageView.h"
+#import "ALDButton.h"
+#import "UIViewExt.h"
+#import "ShowListCell.h"
+#import "TalkListViewController.h"
+
+#define kTableColumns      2
+#define kTableRowHeight    132
+
+@interface TutorListViewController ()
+
+@end
+
+@implementation TutorListViewController
+@synthesize pullTableView  = _pullTableView;
+@synthesize bRefreshing    = _bRefreshing;
+
+- (void)dealloc
+{
+    self.pullTableView.dataSource      = nil;
+    self.pullTableView.delegate        = nil;
+    self.pullTableView.pullingDelegate = nil;
+    self.pullTableView                 = nil;
+    self.tableData                     = nil;
+    
+#if ! __has_feature(objc_arc)
+    [super dealloc];
+#endif
+}
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    
+    [self initParams];
+    [self initUI];
+    [self loadData];
+}
+
+-(void) launchRefreshing{
+    if ([self isViewLoaded]) {
+        [self.pullTableView launchRefreshing];
+    }
+}
+
+//==============
+// 初始化参数
+//==============
+- (void)initParams
+{
+    _iPage            = 1;
+    _iPageSize        = 20;
+    _bDataListHasNext = NO;
+}
+
+//==============
+// 初始化界面
+//==============
+- (void)initUI
+{
+    //-------------------
+    // 列表
+    //-------------------
+    CGRect frame       = self.view.frame;
+    CGFloat viewWidth  = CGRectGetWidth(frame);
+    CGFloat viewHeight = CGRectGetHeight(frame);
+    CGFloat Y          = 2.0f;
+    
+    Y -= 44.0f;
+    
+    frame.size.height              += Y;
+    
+    _pullTableView                  = [[PullingRefreshTableView alloc] initWithFrame:frame pullingDelegate:self];
+    _pullTableView.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
+    _pullTableView.dataSource       = self;
+    _pullTableView.delegate         = self;
+    _pullTableView.pullingDelegate  = self;
+    _pullTableView.separatorStyle   = UITableViewCellSeparatorStyleNone;
+    _pullTableView.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
+    [self.view addSubview:_pullTableView];
+    
+    
+    //申请导师
+    ALDButton *button = [ALDButton buttonWithType:UIButtonTypeCustom];
+    button.frame = CGRectMake(0, viewHeight - 44.0f - 64.0f, viewWidth, 44.0f);
+    [button addTarget:self action:@selector(ClickBtn) forControlEvents:UIControlEventTouchUpInside];
+    [button setBackgroundColor:[UIColor whiteColor]];
+    [self.view addSubview:button];
+    
+    UILabel *label = [self createLabel:CGRectMake((viewWidth-110)/2.f+27, (44-25)/2.f, 110, 25) textColor:RGBCOLOR(237, 34, 34) textFont:k34pxFont];
+    label.textAlignment = TEXT_ALIGN_LEFT;
+    label.text = @"申请成为导师";
+    [button addSubview:label];
+    
+    ALDImageView *img = [[ALDImageView alloc] initWithFrame:CGRectMake(label.left-25, (44-25)/2.f, 25, 25)];
+    img.image = [UIImage imageNamed:@"icon_email"];
+    if (viewWidth == 414) {
+        img.image = [UIImage imageNamed:@"icon_email@3x"];
+    }
+    img.backgroundColor = [UIColor clearColor];
+    [button addSubview:img];
+}
+
+-(void)loadData{
+    //    HttpClient *httpClient=[HttpClient httpClientWithDelegate:self];
+    //    httpClient.needTipsNetError=YES;
+    //    [httpClient queryConferenceList:self.typeId page:_iPage pageCount:_iPageSize];
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    NSInteger count = self.tableData.count;
+    if (count>0) {
+        return count/kTableColumns+1;
+    }
+    return 5;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    static NSString *strCellID = @"CellID";
+    UITableViewCell *cell      = nil;
+    
+    CGRect frame                    = self.view.frame;
+    CGFloat viewWidth              = CGRectGetWidth(frame);
+    NSInteger tagOffSet = 100;
+    
+    if (indexPath.row == 0) {
+        cell = [tableView dequeueReusableCellWithIdentifier:@"cellIDFirst"];
+        if(cell == nil){
+            cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"cellIDFirst"];
+            cell.selectionStyle=UITableViewCellSelectionStyleNone;
+            
+            ShowListCell *showCell = [[ShowListCell alloc] initWithFrame:CGRectMake(0, 0, viewWidth, 150)];
+            showCell.tag = tagOffSet;
+            [showCell addTarget:self action:@selector(clickCell:) forControlEvents:UIControlEventTouchUpInside];
+            [cell addSubview:showCell];
+        }
+    }else {
+        cell = [tableView dequeueReusableCellWithIdentifier:strCellID];
+        if(cell == nil){
+            cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:strCellID];
+            cell.selectionStyle = UITableViewCellSelectionStyleNone;
+            
+            CGFloat x = 0;
+            CGFloat space = 2;
+            CGFloat width = (viewWidth - space)/2.f;
+            
+            for (int i=0; i<kTableColumns; i++) {
+                ShowListCell *showCell = [[ShowListCell alloc] initWithFrame:CGRectMake(x, 0, width, kTableRowHeight - 2)];
+                showCell.tag = tagOffSet+i+1;
+                [showCell addTarget:self action:@selector(clickCell:) forControlEvents:UIControlEventTouchUpInside];
+                [cell addSubview:showCell];
+                x += width+space;
+            }
+        }
+    }
+    
+    return cell;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    CGFloat cellHeight = kTableRowHeight;
+    if (indexPath.row == 0) {
+        cellHeight = 152.0f;
+    }
+    
+    return cellHeight;
+}
+
+-(void)clickCell:(id)sender
+{
+    TalkListViewController *masterController = [[TalkListViewController alloc] init];
+    masterController.title = @"导师";
+    masterController.toController = 2;
+    [self.navigationController pushViewController:masterController animated:YES];
+}
+
+//申请导师
+- (void)ClickBtn {
+    
+}
+
+-(UILabel *)createLabel:(CGRect )frame textColor:(UIColor *)textColor textFont:(UIFont *)textFont
+{
+    UILabel *label=[[UILabel alloc] initWithFrame:frame];
+    label.textColor=textColor;
+    label.font=textFont;
+    label.backgroundColor=[UIColor clearColor];
+    
+    return label;
+}
+
+#pragma mark - Scroll Action
+- (void)scrollViewDidScroll:(UIScrollView *)scrollView
+{
+    [self.pullTableView tableViewDidScroll:scrollView];
+}
+
+- (void)scrollViewDidEndDragging:(UIScrollView *)scrollView willDecelerate:(BOOL)decelerate
+{
+    [self.pullTableView tableViewDidEndDragging:scrollView];
+}
+
+#pragma mark - PullingRefreshTableViewDelegate
+- (void)pullingTableViewDidStartRefreshing:(PullingRefreshTableView *)tableView
+{
+    self.bRefreshing = YES;
+    [self performSelector:@selector(scrollLoadData) withObject:[NSNumber numberWithInt:1] afterDelay:1.f];
+}
+
+- (void)pullingTableViewDidStartLoading:(PullingRefreshTableView *)tableView
+{
+    [self performSelector:@selector(scrollLoadData) withObject:[NSNumber numberWithInt:1] afterDelay:1.f];
+}
+
+
+- (void)scrollLoadData
+{
+    if (self.bRefreshing == YES)
+    {
+        _iPage=1;
+    }
+    else
+    {
+        _iPage++;
+    }
+    [self loadData];
+}
+
+- (void)refrashClick
+{
+    _bDataListHasNext = NO;
+    self.pullTableView.reachedTheEnd  = NO;
+    self.bRefreshing = NO;
+    _iPage = 1;
+}
+
+- (void)getMore
+{
+    if (!_bDataListHasNext)
+    {
+        [self.pullTableView tableViewDidFinishedLoading];
+        self.pullTableView.reachedTheEnd = YES;
+        return;
+    }
+    _iPage++;
+}
+
+- (void)didReceiveMemoryWarning {
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+
+@end

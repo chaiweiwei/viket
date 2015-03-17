@@ -1,0 +1,24 @@
+//
+//  ALDSmsPicker.h
+//  hyt_ios
+//
+//  Created by yulong chen on 12-4-24.
+//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import <MessageUI/MessageUI.h>
+#import "OpenApiUtils.h"
+
+@interface OpenApiSmsPicker : NSObject<MFMessageComposeViewControllerDelegate>{
+    
+}
+
+@property (assign,nonatomic) UIViewController *rootViewController;
+@property (assign,nonatomic) id<OpenApiDelegate> delegate;
+
+/**
+ * 发送短信,调用该方法前必须设置rootViewController
+ */
+- (BOOL)sendsms:(NSString *)message;
+@end

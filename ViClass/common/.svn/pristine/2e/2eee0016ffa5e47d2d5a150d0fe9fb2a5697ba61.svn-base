@@ -1,0 +1,26 @@
+//
+//  PhoneLoginViewController.h
+//  OpenApi
+//
+//  Created by yulong chen on 13-1-21.
+//  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import "OpenApiHttpClient.h"
+#import "OpenApiUtils.h"
+#import "CodeVerifyView.h"
+#import "BaseViewController.h"
+
+@interface PhoneLoginViewController : BaseViewController<UITextFieldDelegate,ALDDataLoadStateDelegate,CodeVerifyViewDelegate>{
+    BOOL _isLoginOk;
+    UINavigationBar *_navBar;
+}
+
+@property (retain,nonatomic)UITextField *phoheText;
+@property (assign,nonatomic) id<OpenApiDelegate> delegate;
+@property (nonatomic) BOOL isMode;
+@property (retain,nonatomic) NSString *appSn;
+@property (retain,nonatomic) NSString *serverUrl;
+
+@end

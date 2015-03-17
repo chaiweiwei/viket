@@ -1,0 +1,33 @@
+//
+//  UserBean.h
+//  OpenApi
+//  用户bean
+//  Created by yulong chen on 13-1-18.
+//  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+@interface UserBean : NSObject
+@property (nonatomic) long uid;
+/** 姓名或昵称 **/
+@property (retain,nonatomic) NSString *name;
+/** 名称拼音 **/
+@property (retain,nonatomic) NSString *pinyin;
+/** 最后在线时间 **/
+@property (retain,nonatomic) NSString *lastTraceTime;
+/** 头像 **/
+@property (retain,nonatomic) NSString *avator;
+/** 纬度 **/
+@property (retain,nonatomic) NSString *lat;
+/** 经度 **/
+@property (retain,nonatomic) NSString *lng;
+/** 距离当前位置，单位：米 **/
+@property (nonatomic) int rang;
+
+/** 个性签名,自我介绍 **/
+@property (retain,nonatomic) NSString *signature;
+
+/** 备注信息：距离+最后在线时间组合 **/
+@property (retain,nonatomic) NSString *note;
+@end

@@ -1,0 +1,51 @@
+//
+//  ChatDao.h
+//  OpenApi
+//  版聊内容存储表
+//  Created by yulong chen on 13-1-18.
+//  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+//
+
+#import "ALDBaseDao.h"
+#import "ChatBean.h"
+
+@interface ChatDao : ALDBaseDao
+/**
+ * 添加聊天内容，如果存在则更新
+ * @param bean 聊天内容对象
+ * @return 成功返回true,失败返回false
+ */
+-(BOOL) addChat:(ChatBean *) bean;
+
+/**
+ * 更新聊天内容，如果不存在则新增
+ * @param bean 聊天内容对象
+ * @return 成功返回true,失败返回false
+ */
+-(BOOL) updateChat:(ChatBean *) bean;
+
+/**
+ * 删除聊天内容
+ * @param chatId 聊天内容id
+ * @return 成功返回true,失败返回false
+ */
+-(BOOL) deleteChat:(long)chatId;
+
+/**
+ * 清除置顶标识
+ **/
+-(BOOL) clearToptag;
+
+/**
+ * 聊天记录查询
+ * @param startIdx startIdx 查询起始索引，包括该索引项
+ * @param max 最大返回结果数
+ * @return 返回聊天内容列表列表，不存在返回空的数组
+ */
+-(NSMutableArray*) queryChats:(int) startIdx max:(int) max;
+
+/**
+ * 清除数据
+ **/
+-(BOOL) clearData;
+@end

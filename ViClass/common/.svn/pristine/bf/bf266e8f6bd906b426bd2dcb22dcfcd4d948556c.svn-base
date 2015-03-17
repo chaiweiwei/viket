@@ -1,0 +1,26 @@
+//
+//  WeixinTextViewController.h
+//  GWCClub
+//
+//  Created by yulong chen on 13-3-4.
+//  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+
+@protocol TextViewControllerDelegate
+-(void) onCancelText;
+-(void) onCompleteText:(NSString*)nsText;
+@end
+
+@interface WeixinTextViewController : UIViewController<UITextViewDelegate> {
+	UITextView *m_textView;
+	id<TextViewControllerDelegate> m_delegate;
+	UILabel* m_wordCountLabel;
+    NSString* m_nsLastText;
+}
+
+@property (nonatomic,assign) id<TextViewControllerDelegate> m_delegate;
+@property (nonatomic,retain) NSString* m_nsLastText;
+
+@end

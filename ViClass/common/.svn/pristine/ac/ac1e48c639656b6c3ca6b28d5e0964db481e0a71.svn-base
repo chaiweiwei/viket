@@ -1,0 +1,29 @@
+//
+//  QQAuthViewController.h
+//  OpenApi
+//
+//  Created by yulong chen on 13-1-14.
+//  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import "WBAuthorize.h"
+
+@interface QQAuthViewController : UIViewController<UIWebViewDelegate>{
+    UIWebView *_webView;
+    UILabel *_textLabel;
+    BOOL isSuccessed;
+    BOOL backClicked;
+    UINavigationBar *_navBar; //NO Retain
+}
+
+@property (nonatomic, retain) id<WBAuthorizeWebViewDelegate> delegate;
+
+@property (nonatomic,retain) UIWebView *webView;
+@property (nonatomic,retain) NSString *redirectUri;
+@property (nonatomic) BOOL isMode;
+
+- (void)loadRequestWithURL:(NSURL *)url;
+
+- (void)hide:(BOOL)animated;
+@end

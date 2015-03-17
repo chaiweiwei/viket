@@ -1,0 +1,286 @@
+//
+//  WBSinaEngine.m
+//  WeiboApi
+//
+//  Created by yulong chen on 12-8-2.
+//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//
+
+#import "WBSinaEngine.h"
+
+#define kErrorDomain @"WBSinaEngine"
+@implementation WBSinaEngine
+-(id) init{
+    self=[super init];
+    if (self) {
+        self.keychainPrefix=@"Sina";
+        self.weiboType=TypeSinaWeibo;
+    }
+    return self;
+}
+
+//- (id)initWithAppKey:(NSString *)theAppKey appSecret:(NSString *)theAppSecret
+//{
+//    if (self = [self init])
+//    {
+//        self.appKey = theAppKey;
+//        self.appSecret = theAppSecret;
+//        
+//        [self readAuthorizeDataFromKeychain];
+//    }
+//    
+//    return self;
+//}
+
+/**
+ * 获取用户微博
+ * @param uid	需要查询的用户ID。
+ * @param nick 微博昵称，uid和nick参数必须二选一
+ * @param maxId 若指定此参数，则返回ID小于或等于max_id的微博，默认为0。
+ * @param page  返回结果的页码，默认为1。
+ * @param count 单页返回的记录条数，默认为50。 
+ * @param trimUser 返回值中user信息开关，0：返回完整的user信息、1：user字段仅返回user_id，默认为0。
+ **/
+-(void) readUserTimeline:(NSString *)uid nick:(NSString*)nick maxId:(NSString *)maxId page:(int)page pagecount:(int)pagecount trimUser:(int)trimUser{
+    self.requestPath=WeiboRequestPathForOther;
+    NSMutableDictionary *params=[NSMutableDictionary dictionary];
+    //NSLog(@"uid:%@ , nick:%@",uid,nick);
+    if (uid && ![uid isEqualToString:@""]) {
+        [params setObject:uid forKey:@"uid"];
+    }else if (nick && ![nick isEqualToString:@""]) {
+        [params setObject:nick forKey:@"screen_name"];
+    }else {
+        if ([delegate respondsToSelector:@selector(engine:requestDidFailWithError:)])
+        {
+            NSMutableDictionary *userInfo=[NSMutableDictionary dictionary];
+            [userInfo setObject:[NSNumber numberWithInt:kPARAM_ERROR] forKey:@"error_code"];
+            [userInfo setObject:@"参数错误,用户id或昵称不能为空" forKey:@"msg"];
+            NSError *error=[NSError errorWithDomain:kErrorDomain code:kPARAM_ERROR userInfo:userInfo];
+            [delegate engine:self requestDidFailWithError:error];
+        }
+        return;
+    }
+    
+    if (maxId) {
+        [params setObject:maxId forKey:@"max_id"];
+    }
+    if (page<1) page=1;
+    if (pagecount<1) pagecount=20;
+    [params setObject:[NSNumber numberWithInt:page] forKey:@"page"];
+    [params setObject:[NSNumber numberWithInt:pagecount] forKey:@"count"];
+    [params setObject:[NSNumber numberWithInt:0] forKey:@"base_app"];
+    [params setObject:[NSNumber numberWithInt:0] forKey:@"feature"];
+    [params setObject:[NSNumber numberWithInt:trimUser] forKey:@"trim_user"];
+    
+    [self loadRequestWithMethodName:@"statuses/user_timeline.json"
+                         httpMethod:@"GET"
+                             params:params
+                       postDataType:kWBRequestPostDataTypeNone
+                   httpHeaderFields:nil];
+}
+
+/**
+ * 查看用户信息
+ * @param wuid 微博用户id
+ */
+-(void) showUser:(NSString *) wuid{
+    self.requestPath=WeiboRequestPathForShowUser;
+    if (!wuid || [wuid isEqualToString:@""]) {
+        if ([delegate respondsToSelector:@selector(engine:requestDidFailWithError:)])
+        {
+            NSMutableDictionary *userInfo=[NSMutableDictionary dictionary];
+            [userInfo setObject:[NSNumber numberWithInt:kPARAM_ERROR] forKey:@"error_code"];
+            [userInfo setObject:@"参数错误,微博用户id不能为空" forKey:@"msg"];
+            NSError *error=[NSError errorWithDomain:kErrorDomain code:kPARAM_ERROR userInfo:userInfo];
+            [delegate engine:self requestDidFailWithError:error];
+        }
+        return;
+    }
+    
+    NSMutableDictionary *params=[NSMutableDictionary dictionary];
+    [params setObject:wuid forKey:@"uid"];
+    [self loadRequestWithMethodName:@"users/show.json"
+                         httpMethod:@"GET"
+                             params:params
+                       postDataType:kWBRequestPostDataTypeNone
+                   httpHeaderFields:nil];
+}
+
+/**
+ * 发送微博
+ * @param text 微博文本内容
+ * @param image 带图片的微博,可空
+ * @param lat 纬度
+ * @param lng 经度
+ **/
+- (void)sendWeiBoWithText:(NSString *)text image:(UIImage *)image lat:(NSString*)lat lng:(NSString*)lng
+{
+    self.requestPath=WeiboRequestPathForFasong;
+    if ((!text || [text isEqualToString:@""]) &&!image) {
+        if ([delegate respondsToSelector:@selector(engine:requestDidFailWithError:)])
+        {
+            NSMutableDictionary *userInfo=[NSMutableDictionary dictionary];
+            [userInfo setObject:[NSNumber numberWithInt:kPARAM_ERROR] forKey:@"error_code"];
+            [userInfo setObject:@"参数错误,微博内容不能为空" forKey:@"msg"];
+            NSError *error=[NSError errorWithDomain:kErrorDomain code:kPARAM_ERROR userInfo:userInfo];
+            [delegate engine:self requestDidFailWithError:error];
+        }
+        return;
+    }
+    NSMutableDictionary *params = [NSMutableDictionary dictionaryWithCapacity:2];
+    //NSString *sendText = [text URLEncodedString];
+	[params setObject:(text ? text : @"") forKey:@"status"];
+    if (lat && ![lat isEqualToString:@""]) {
+        [params setObject:lat forKey:@"lat"];
+    }
+    if (lng && ![lng isEqualToString:@""]) {
+        [params setObject:lng forKey:@"long"];
+    }
+    if (image)
+    {
+		[params setObject:image forKey:@"pic"];
+        [self loadRequestWithMethodName:@"statuses/upload.json"
+                             httpMethod:@"POST"
+                                 params:params
+                           postDataType:kWBRequestPostDataTypeMultipart
+                       httpHeaderFields:nil];
+    }else {
+        [self loadRequestWithMethodName:@"statuses/update.json"
+                             httpMethod:@"POST"
+                                 params:params
+                           postDataType:kWBRequestPostDataTypeNormal
+                       httpHeaderFields:nil];
+    }
+}
+
+/**
+ * 转发微博
+ * @param text 内容
+ * @param 转发微博的id
+ */
+- (void)repostWeiboWithText:(NSString *) text weibId:(NSString *)weiboId{
+    self.requestPath=WeiboRequestPathForZhuanfa;
+    if (!weiboId || [weiboId isEqualToString:@""]) {
+        if ([delegate respondsToSelector:@selector(engine:requestDidFailWithError:)])
+        {
+            NSMutableDictionary *userInfo=[NSMutableDictionary dictionary];
+            [userInfo setObject:[NSNumber numberWithInt:kPARAM_ERROR] forKey:@"error_code"];
+            [userInfo setObject:@"参数错误,转发微博id不能为空" forKey:@"msg"];
+            NSError *error=[NSError errorWithDomain:kErrorDomain code:kPARAM_ERROR userInfo:userInfo];
+            [delegate engine:self requestDidFailWithError:error];
+        }
+        return;
+    }
+    NSMutableDictionary *params=[NSMutableDictionary dictionary];
+    [params setObject:weiboId forKey:@"id"];
+    [params setObject:(text ? text : @"") forKey:@"status"];
+    [self loadRequestWithMethodName:@"statuses/repost.json"
+                         httpMethod:@"POST"
+                             params:params
+                       postDataType:kWBRequestPostDataTypeNormal
+                   httpHeaderFields:nil];
+}
+
+/**
+ * 评论微博
+ * @param text 内容
+ * @param 待评论微博的id
+ */
+-(void) commentsWeiboWithText:(NSString *)text weiboId:(NSString *)weiboId{
+    self.requestPath=WeiboRequestPathForPinglun;
+    if (!weiboId || [weiboId isEqualToString:@""]) {
+        if ([delegate respondsToSelector:@selector(engine:requestDidFailWithError:)])
+        {
+            NSMutableDictionary *userInfo=[NSMutableDictionary dictionary];
+            [userInfo setObject:[NSNumber numberWithInt:kPARAM_ERROR] forKey:@"error_code"];
+            [userInfo setObject:@"参数错误,评论微博id不能为空" forKey:@"msg"];
+            NSError *error=[NSError errorWithDomain:kErrorDomain code:kPARAM_ERROR userInfo:userInfo];
+            [delegate engine:self requestDidFailWithError:error];
+        }
+        return;
+    }
+    if (!text || [text isEqualToString:@""]) {
+        if ([delegate respondsToSelector:@selector(engine:requestDidFailWithError:)])
+        {
+            NSMutableDictionary *userInfo=[NSMutableDictionary dictionary];
+            [userInfo setObject:[NSNumber numberWithInt:kPARAM_ERROR] forKey:@"error_code"];
+            [userInfo setObject:@"参数错误,评论内容不能为空" forKey:@"msg"];
+            NSError *error=[NSError errorWithDomain:kErrorDomain code:kPARAM_ERROR userInfo:userInfo];
+            [delegate engine:self requestDidFailWithError:error];
+        }
+        return;
+    }
+    NSMutableDictionary *params=[NSMutableDictionary dictionary];
+    [params setObject:weiboId forKey:@"id"];
+    [params setObject:text forKey:@"comment"];
+    [self loadRequestWithMethodName:@"comments/create.json"
+                         httpMethod:@"POST"
+                             params:params
+                       postDataType:kWBRequestPostDataTypeNormal
+                   httpHeaderFields:nil];
+}
+
+/**
+ * 关注某用户
+ * @param uid 待关注的微博用户id uid与screenName必须二选一
+ * @param screenName 微博昵称，如果uid为空，则使用此参数
+ **/
+-(void) friendshipsCreate:(NSString *) uid screenName:(NSString*) nick{
+    self.requestPath=WeiboRequestPathForCreateFreinds;
+    if ((!uid || [uid isEqualToString:@""]) && (!nick || [nick isEqualToString:@""])) {
+        if ([delegate respondsToSelector:@selector(engine:requestDidFailWithError:)])
+        {
+            NSMutableDictionary *userInfo=[NSMutableDictionary dictionary];
+            [userInfo setObject:[NSNumber numberWithInt:kPARAM_ERROR] forKey:@"error_code"];
+            [userInfo setObject:@"参数错误,待关注用户不能为空" forKey:@"msg"];
+            NSError *error=[NSError errorWithDomain:kErrorDomain code:kPARAM_ERROR userInfo:userInfo];
+            [delegate engine:self requestDidFailWithError:error];
+        }
+        return;
+    }
+    NSMutableDictionary *params=[NSMutableDictionary dictionary];
+    if (uid && ![uid isEqualToString:@""]) {
+        [params setObject:uid forKey:@"uid"];
+    }else {
+        [params setObject:nick forKey:@"screen_name"];
+    }
+    
+    [self loadRequestWithMethodName:@"friendships/create.json"
+                         httpMethod:@"POST"
+                             params:params
+                       postDataType:kWBRequestPostDataTypeNormal
+                   httpHeaderFields:nil];
+}
+
+/**
+ * 取消关注某用户
+ * @param uid 待取消关注的微博用户id uid与screenName必须二选一
+ * @param screenName 微博昵称，如果uid为空，则使用此参数
+ **/
+-(void) friendshipsDestroy:(NSString *) uid screenName:(NSString *)nick{
+    self.requestPath=WeiboRequestPathForDestroyFreinds;
+    if ((!uid || [uid isEqualToString:@""]) && (!nick || [nick isEqualToString:@""])) {
+        if ([delegate respondsToSelector:@selector(engine:requestDidFailWithError:)])
+        {
+            NSMutableDictionary *userInfo=[NSMutableDictionary dictionary];
+            [userInfo setObject:[NSNumber numberWithInt:kPARAM_ERROR] forKey:@"error_code"];
+            [userInfo setObject:@"参数错误,取消关注用户不能为空" forKey:@"msg"];
+            NSError *error=[NSError errorWithDomain:kErrorDomain code:kPARAM_ERROR userInfo:userInfo];
+            [delegate engine:self requestDidFailWithError:error];
+        }
+        return;
+    }
+    NSMutableDictionary *params=[NSMutableDictionary dictionary];
+    if (uid && ![uid isEqualToString:@""]) {
+        [params setObject:uid forKey:@"uid"];
+    }else {
+        [params setObject:nick forKey:@"screen_name"];
+    }
+    [self loadRequestWithMethodName:@"friendships/destroy.json"
+                         httpMethod:@"POST"
+                             params:params
+                       postDataType:kWBRequestPostDataTypeNormal
+                   httpHeaderFields:nil];
+}
+
+@end

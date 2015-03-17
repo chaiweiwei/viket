@@ -1,0 +1,5 @@
+platform :ios,'7.0'
+pod 'ASIHTTPRequest', '~> 1.8.2'
+pod 'SBJson', '~> 3.2'
+pod 'FMDB', '~> 2.3'
+pod 'OHAttributedLabel', '~> 3.5.4'

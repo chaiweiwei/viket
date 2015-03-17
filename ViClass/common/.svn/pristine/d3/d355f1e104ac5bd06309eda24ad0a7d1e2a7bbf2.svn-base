@@ -1,0 +1,200 @@
+//
+//  MyTecentDelegate.m
+//  OpenApi
+//
+//  Created by yulong chen on 13-1-14.
+//  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+//
+
+#import "MyTecentDelegate.h"
+
+@implementation MyTecentDelegate
+@synthesize delegate=_delegate;
+
+/**
+ * Called when the user successfully logged in.
+ */
+/*!
+ @method     tencentDidLogin
+ @discussion Called when the user successfully logged in.
+ */
+- (void)tencentDidLogin{
+    
+}
+
+/**
+ * Called when the user dismissed the dialog without logging in.
+ */
+/*!
+ @method     tencentDidNotLogin:
+ @discussion Called when the user dismissed the dialog without logging in.
+ @param      cancelled cancelled
+ */
+- (void)tencentDidNotLogin:(BOOL)cancelled{
+    
+}
+
+/**
+ * Called when the notNewWork.
+ */
+/*!
+ @method     tencentDidNotNetWork
+ @discussion Called when the notNewWork.
+ */
+- (void)tencentDidNotNetWork{
+    
+}
+
+/**
+ * Called when the user logged out.
+ */
+/*!
+ @method     tencentDidLogout
+ @discussion Called when the user logged out.
+ */
+- (void)tencentDidLogout{
+    
+}
+
+/**
+ * Called when the get_user_info has response.
+ */
+/*!
+ @method     getUserInfoResponse:
+ @discussion Called when the get_user_info has response.
+ @param      response response
+ */
+- (void)getUserInfoResponse:(APIResponse*) response{
+    
+}
+
+/**
+ * Called when the get_list_album has response.
+ */
+/*!
+ @method     getListAlbumResponse:
+ @discussion Called when the get_list_album has response.
+ @param      response response
+ */
+- (void)getListAlbumResponse:(APIResponse*) response{
+    
+}
+
+/**
+ * Called when the get_list_photo has response.
+ */
+
+/*!
+ @method     getListPhotoResponse:
+ @discussion Called when the get_list_photo has response.
+ @param      response response
+ */
+- (void)getListPhotoResponse:(APIResponse*) response{
+    
+}
+
+/**
+ * Called when the check_page_fans has response.
+ */
+/*!
+ @method     checkPageFansResponse:
+ @discussion Called when the check_page_fans has response.
+ @param      response response
+ */
+- (void)checkPageFansResponse:(APIResponse*) response{
+    
+}
+
+/**
+ * Called when the add_share has response.
+ */
+/*!
+ @method     addShareResponse:
+ @discussion Called when the add_share has response.
+ @param      response response
+ */
+- (void)addShareResponse:(APIResponse*) response{
+    
+}
+
+/**
+ * Called when the add_album has response.
+ */
+/*!
+ @method     addAlbumResponse:
+ @discussion Called when the add_album has response.
+ @param      response response
+ */
+- (void)addAlbumResponse:(APIResponse*) response{
+    
+}
+
+/**
+ * Called when the upload_pic has response.
+ */
+/*!
+ @method     uploadPicResponse:
+ @discussion Called when the upload_pic has response.
+ @param      response response
+ */
+- (void)uploadPicResponse:(APIResponse*) response{
+    
+}
+
+/**
+ * Called when the add_one_blog has response.
+ */
+/*!
+ @method     addOneBlogResponse:
+ @discussion Called when the add_one_blog has response.
+ @param      response response
+ */
+- (void)addOneBlogResponse:(APIResponse*) response{
+    
+}
+
+/**
+ * Called when the add_topic has response.
+ */
+/*!
+ @method     addTopicResponse:
+ @discussion Called when the add_topic has response.
+ @param      response response
+ */
+- (void)addTopicResponse:(APIResponse*) response{
+    
+}
+
+/**
+ * Handle the auth.ExpireSession api call failure
+ */
+- (void)request:(TencentRequest*)request didFailWithError:(NSError*)error{
+	//NSString *errorInfo = [error localizedDescription];
+	NSLog(@"Failed to expire the session");
+}
+
+- (void)request:(TencentRequest *)request didReceiveResponse:(NSURLResponse *)response {
+	NSLog(@"received response");
+}
+
+
+
+/**
+ * Called when a request returns and its response has been parsed into
+ * an object. The resulting object may be a dictionary, an array, a string,
+ * or a number, depending on the format of the API response. If you need access
+ * to the raw response, use:
+ *
+ * (void)request:(FBRequest *)request
+ *      didReceiveResponse:(NSURLResponse *)response
+ */
+- (void)request:(TencentRequest *)request didLoad:(id)result dat:(NSData *)data{
+	if ([result isKindOfClass:[NSDictionary class]]) {
+		NSDictionary *root = (NSDictionary *)result;
+		if ([[root allKeys] count] == 0) {
+			NSLog(@"received didLoad error");
+			return;
+		}
+	}
+};
+@end

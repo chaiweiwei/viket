@@ -1,0 +1,26 @@
+//
+//  WBSinaEngine.h
+//  WeiboApi
+//
+//  Created by yulong chen on 12-8-2.
+//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//
+
+#import "WBEngine.h"
+
+@interface WBSinaEngine : WBEngine{
+    
+}
+
+/**
+ * 获取用户微博
+ * @param uid	需要查询的用户ID。
+ * @param nick 微博昵称，uid和nick参数必须二选一
+ * @param maxId 若指定此参数，则返回ID小于或等于max_id的微博，默认为0。
+ * @param page  返回结果的页码，默认为1。
+ * @param count 单页返回的记录条数，默认为50。 
+ * @param trimUser 返回值中user信息开关，0：返回完整的user信息、1：user字段仅返回user_id，默认为0。
+ **/
+-(void) readUserTimeline:(NSString *)uid nick:(NSString*)nick maxId:(NSString *)maxId page:(int)page pagecount:(int)pagecount trimUser:(int)trimUser;
+
+@end

@@ -1,0 +1,22 @@
+//
+//  ChatBean.m
+//  OpenApi
+//  聊天内容bean
+//  Created by yulong chen on 13-1-18.
+//  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+//
+
+#import "ChatBean.h"
+
+@implementation ChatBean
+@synthesize chatId=_chatId,fromUid=_fromUid,name=_name,avator=_avator,content=_content,createDate=_createDate,topFlag=_topFlag;
+
+- (void)dealloc
+{
+    [_name release];
+    [_avator release];
+    [_content release];
+    [_createDate release];
+    [super dealloc];
+}
+@end

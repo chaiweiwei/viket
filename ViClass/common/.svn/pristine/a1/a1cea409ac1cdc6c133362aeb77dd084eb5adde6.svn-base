@@ -1,0 +1,33 @@
+//
+//  NearlyViewController.h
+//  OpenApi
+//
+//  Created by aaa a on 13-1-14.
+//  Copyright (c) 2013年 qw. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import "BaseViewController.h"
+#import <CoreLocation/CoreLocation.h>
+#import "OpenApiHttpClient.h"
+#import "PullingRefreshTableView.h"
+
+@interface NearlyViewController : BaseViewController<UITableViewDelegate,UITableViewDataSource,PullingRefreshTableViewDelegate,ALDDataLoadStateDelegate,CLLocationManagerDelegate>{
+    int _radius;
+    int _page;
+    int _pageCount;
+    BOOL _hasNext;
+    /** 用于获取位置信息 **/
+    CLLocationManager *_locManager;
+    BOOL _isInit;
+}
+
+@property (retain, nonatomic)PullingRefreshTableView *tableview;
+@property (nonatomic) BOOL refreshing;
+@property (retain, nonatomic) NSString *appSn;
+@property (retain,nonatomic) NSString *serverUrl;
+@property (retain, nonatomic) NSString *lat;
+@property (retain, nonatomic) NSString *lng;
+@property (nonatomic, retain) NSMutableArray *data;
+
+@end

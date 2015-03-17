@@ -1,0 +1,360 @@
+//
+//  SendChatViewController.m
+//  OpenApi
+//
+//  Created by yulong chen on 13-1-20.
+//  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+//
+
+#import "SendChatViewController.h"
+#import <QuartzCore/QuartzCore.h>
+#import "ALDUtils.h"
+#import "WBSinaEngine.h"
+
+@interface SendChatViewController ()
+- (void)keyboardWillShow:(NSNotification *)notification;
+- (void)keyboardWillHide:(NSNotification *)notification;
+-(void) moveInputBarWithKeyboardHeight:(CGFloat) height;
+@end
+
+@implementation SendChatViewController
+@synthesize appSn=_appSn;
+@synthesize serverUrl=_serverUrl;
+@synthesize isMode=_isMode;
+@synthesize delegate=_delegate;
+
+#define kPlacederText @"请输入内容!"
+
+-(void)dealloc{
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+    [_appSn release];
+    [_serverUrl release];
+    [_switchView release];
+    [_textView release];
+    [super dealloc];
+}
+- (void)viewWillAppear:(BOOL)animated{
+	if (self.hidesBottomBarWhenPushed) {
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"hideCustomTabBar" object:nil];
+    }
+    self.navigationController.navigationBarHidden=NO;
+}
+
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        // Custom initialization
+    }
+    return self;
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    if (!self.title || [self.title isEqualToString:@""]) {
+        self.title=@"聊天";
+    }
+    
+    UIBarButtonItem *btnSave = [[UIBarButtonItem alloc] 
+                                initWithTitle:@"发送"                                            
+                                style:UIBarButtonItemStyleBordered 
+                                target:self 
+                                action:@selector(btnClick:)];
+    btnSave.tag=0x101;
+    
+    CGFloat startY=0;
+    if (!self.navigationController) {
+        _navBar=[self createTitleBar];
+        [self.view addSubview:_navBar];
+        startY=_navBar.frame.size.height;
+        _navBar.topItem.rightBarButtonItem=btnSave;
+    }else {
+        if (_isMode) {
+            UIBarButtonItem *leftBtn = [[UIBarButtonItem alloc] 
+                                        initWithTitle:@"取消"                                            
+                                        style:UIBarButtonItemStyleBordered 
+                                        target:self 
+                                        action:@selector(btnClick:)];
+            leftBtn.tag=0x102;
+            self.navigationItem.leftBarButtonItem = leftBtn;
+            [leftBtn release];
+        }
+        self.navigationItem.rightBarButtonItem=btnSave;
+    }
+    [btnSave release];
+
+    //文本编辑框
+    _textView = [[UITextView alloc] initWithFrame:CGRectMake(10, startY+10, 300, 120)];  
+    UIColor *color=[[UIColor alloc] initWithRed:87/255.f green:87/255.f blue:87/255.f alpha:0.8];
+    _textView.textColor = color;
+    [color release];
+    _textView.font = [UIFont fontWithName:@"Arial" size:16.0]; 
+    _textView.delegate = self;
+    _textView.backgroundColor = [UIColor whiteColor]; 
+    //    _textView.text = @""; 
+    _textView.text=kPlacederText;
+    _textView.returnKeyType = UIReturnKeyDefault; 
+    _textView.keyboardType = UIKeyboardTypeDefault;//键盘类型
+    [_textView becomeFirstResponder];
+    _textView.scrollEnabled = YES;
+    _textView.textAlignment = TEXT_ALIGN_LEFT;
+    color=[[UIColor alloc] initWithRed:142/255.f green:140/255.f blue:138/255.f alpha:1]; 
+    _textView.layer.borderColor =color.CGColor;
+    [color release];
+    _textView.layer.borderWidth =1.0;
+    _textView.layer.cornerRadius =10.0;
+    [self.view addSubview: _textView]; 
+    
+    _switchView=[[UISwitch alloc] initWithFrame:CGRectMake(30, startY+135, 60, 20)];
+    [_switchView setOn:NO];
+    [self.view addSubview:_switchView];
+    
+    UILabel *label=[[UILabel alloc] initWithFrame:CGRectMake(130, startY+135, 100, 20)];
+    label.text=@"同步到新浪微博";
+    label.font=[UIFont boldSystemFontOfSize:13.0];
+    label.textAlignment=TEXT_ALIGN_LEFT;
+    label.lineBreakMode = LineBreakModeWordWrap;
+    label.textColor=[UIColor orangeColor];
+    label.numberOfLines=1;
+    label.enabled=YES;
+    label.backgroundColor=[UIColor clearColor];
+    [self.view addSubview:label];
+    [label release];
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillShow:) name:UIKeyboardWillShowNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillHide:) name:UIKeyboardWillHideNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(clearText) name:UITextViewTextDidBeginEditingNotification object:nil];  
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(addTipsText) name:UITextViewTextDidEndEditingNotification object:nil];
+}
+
+
+-(UINavigationBar *) createTitleBar{
+    NSString *title=self.title;
+    UINavigationBar *navBar=[[UINavigationBar alloc] initWithFrame:CGRectMake(0, 0, self.view.bounds.size.width, 44)];
+    navBar.barStyle=UIBarStyleBlackTranslucent;
+    UINavigationItem *navItem=[[UINavigationItem alloc] initWithTitle:title];
+    UIBarButtonItem *leftBtn=[[UIBarButtonItem alloc]initWithTitle:@"取消" style:UIBarButtonItemStyleBordered target:self action:@selector(btnClick:)];
+    leftBtn.tag=0x102;
+    navItem.leftBarButtonItem=leftBtn;
+    [leftBtn release];
+    [navBar pushNavigationItem:navItem animated:YES];
+    [navItem release];
+    return [navBar autorelease];
+}
+
+-(void) addTipsText{
+    NSString *text=_textView.text;
+    if (!text || [text isEqualToString:@""]) {
+        _textView.text=kPlacederText;
+    }
+}
+
+//编辑文字前清空默认
+-(void)clearText{
+    NSString *text=_textView.text;
+    if ([text isEqualToString:kPlacederText]) {
+        _textView.text=@"";
+    }
+}
+
+
+//发送】
+-(void)btnClick:(id) sender{
+    int tag=[sender tag];
+    if (tag==0x101) {
+        NSString *text=_textView.text;
+        if (!text || [text isEqualToString:@""] || [text isEqualToString:kPlacederText]) {
+            [ALDUtils showToast:@"请输入聊天内容！"];
+            return;
+        }else {
+            NSString *appid=[[NSUserDefaults standardUserDefaults] objectForKey:kAppidKey];
+            OpenApiHttpClient *http=[OpenApiHttpClient httpClientWithDelegate:self];
+            http.needTipsNetError=YES;
+            http.serverUrl=_serverUrl;
+            if (!appid || [appid isEqualToString:@""]) {
+                [http registAppId:_appSn];
+            }else {
+                [http sendChat:appid appSn:_appSn content:text];
+            }
+            
+            if ([_switchView isOn]) {
+                WBSinaEngine *engine=[[WBSinaEngine alloc] initWithAppKey:kSINAAPPKEY appSecret:kSINAAPPSECRET];
+                [engine setRootViewController:self];
+                MyWBEngineDelegate *weiboDelegate=[[MyWBEngineDelegate alloc] init ];
+                weiboDelegate.delegate=self;
+                [engine setDelegate:weiboDelegate];
+                engine.isMode=YES;
+                [weiboDelegate release];
+                [engine setRedirectURI:kRedirectUri];
+                [engine setIsUserExclusive:NO];
+                if ([engine isLoggedIn] && ![engine isAuthorizeExpired]) {
+                    //已经登录，获取用户信息再返回
+                    [engine sendWeiBoWithText:text image:nil lat:nil lng:nil];
+                }else {
+                    [engine logIn];
+                }
+                [engine release];
+            }
+        }
+    }else if(tag==0x102){
+        if (_isMode) {
+            [self dismissViewControllerAnimated:YES completion:nil];
+        }else {
+            [self.navigationController popViewControllerAnimated:YES];
+        }
+    }
+}
+
+#pragma mark Responding to keyboard events
+- (void)keyboardWillShow:(NSNotification *)notification {
+    NSDictionary *userInfo = [notification userInfo];
+    NSValue* aValue = [userInfo objectForKey:UIKeyboardFrameEndUserInfoKey];
+    CGRect keyboardRect = [aValue CGRectValue];
+    [self moveInputBarWithKeyboardHeight:keyboardRect.size.height];
+}
+
+- (void)keyboardWillHide:(NSNotification *)notification {
+    [self moveInputBarWithKeyboardHeight:0.0];
+}
+
+-(void) moveInputBarWithKeyboardHeight:(CGFloat) height{
+    CGFloat selfViewH=416;//self.view.frame.size.height;
+    CGFloat textHeight=selfViewH-55-height;
+    if (textHeight>120) {
+        textHeight=120;
+    }
+    CGRect textFrame=_textView.frame;
+    textFrame.size.height=textHeight;
+    _textView.frame=textFrame;
+}
+
+//在点击文本后调用这个方法，返回no不允许对文本进行编辑，键盘也不会弹出。
+- (BOOL)textViewShouldBeginEditing:(UITextView *)textView{
+	[UIView beginAnimations:nil context:NULL];
+    [UIView setAnimationDuration:0.3];
+    [UIView setAnimationDelegate:self];
+    [UIView commitAnimations];
+    
+    return YES;
+}
+
+//请求取消第一响应者后调用，yes可以取消第一响应者，no不可以，键盘也不会消失
+- (BOOL)textViewShouldEndEditing:(UITextView *)textView{ 
+    [UIView beginAnimations:nil context:NULL];
+    [UIView setAnimationDuration:0.3];
+    [UIView setAnimationDelegate:self];
+    [UIView commitAnimations];
+    
+	return YES;
+}
+
+////取消键盘后文本框停留的位置
+//- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event{
+//	[_textView resignFirstResponder];	
+//}
+
+- (void)textViewDidBeginEditing:(UITextView *)textView{
+    
+}
+
+//取消、出现键盘第一反应
+- (void)textViewDidEndEditing:(UITextView *)textView{	
+	[_textView resignFirstResponder];
+    // self.navigationItem.rightBarButtonItem = nil;  
+}
+
+- (void)leaveEditMode {      
+    [_textView resignFirstResponder];     
+}
+
+
+- (void)viewDidUnload
+{
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+    [_textView release],_textView=nil;
+    [_switchView release],_switchView=nil;
+    [super viewDidUnload];
+}
+
+- (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
+{
+    return (interfaceOrientation == UIInterfaceOrientationPortrait);
+}
+
+-(void) aldDataStartLoad:(ALDHttpRequestPath)requestPath{
+    [ALDUtils addWaitingView:self.view withText:@"正在发送，请稍候..."];
+}
+
+-(void) aldDataLoadDone:(ALDHttpRequestPath)requestPath withCode:(int)code withObj:(id)object{
+    if (requestPath==ALDHttpRequestPathForAppid) {
+        if (code==KOK) {
+            OpenApiHttpClient *http=[OpenApiHttpClient httpClientWithDelegate:self];
+            http.needTipsNetError=YES;
+            http.serverUrl=_serverUrl;
+            [http sendChat:object appSn:_appSn content:_textView.text];
+        }else if(code!=kNET_ERROR && code!=kNET_TIMEOUT){
+            [ALDUtils showToast:@"发送失败，请稍候再试!"];
+        }else {
+            [ALDUtils showToast:@"发送失败，网络异常!"];
+        }
+    }else if (requestPath==ALDHttpRequestPathForSendChat) {
+        [ALDUtils removeWaitingView:self.view];
+        if (code==KOK) {
+            [ALDUtils showToast:@"发送成功!"];
+            if (_delegate && [_delegate respondsToSelector:@selector(sendChatView:didSendText:)]) {
+                [_delegate sendChatView:self didSendText:_textView.text];
+            }
+            if (![_switchView isOn]) {
+                if (_isMode) {
+                    [self dismissViewControllerAnimated:YES completion:nil];
+                }else {
+                    [self.navigationController popViewControllerAnimated:YES];
+                }
+            }
+        }else if(code!=kNET_ERROR && code!=kNET_TIMEOUT){
+            [ALDUtils showToast:@"发送失败，请稍候再试!"];
+        }else {
+            [ALDUtils showToast:@"发送失败，网络异常!"];
+        }
+    }
+}
+
+-(void) openApiLoginFailed:(NSError *)error{
+    NSLog(@"新浪微博登录失败!");
+}
+
+-(void) openApiLoginSuccessed:(OpenApiUserBean *)user{
+    WBSinaEngine *engine=[[WBSinaEngine alloc] initWithAppKey:kSINAAPPKEY appSecret:kSINAAPPSECRET];
+    [engine setRootViewController:self];
+    MyWBEngineDelegate *weiboDelegate=[[MyWBEngineDelegate alloc] init ];
+    weiboDelegate.delegate=self;
+    [engine setDelegate:weiboDelegate];
+    engine.isMode=YES;
+    [weiboDelegate release];
+    [engine setRedirectURI:kRedirectUri];
+    [engine setIsUserExclusive:NO];
+    [engine sendWeiBoWithText:_textView.text image:nil lat:nil lng:nil];
+    [engine release];
+}
+
+-(void) response:(WBEngine *)engine openApiDidFailWithError:(NSError *)error{
+    [ALDUtils showToast:@"同步到新浪微博失败!"];
+    if (_isMode) {
+        [self dismissViewControllerAnimated:YES completion:nil];
+    }else {
+        [self.navigationController popViewControllerAnimated:YES];
+    }
+}
+
+-(void) response:(WBEngine *)engine openApiDidSucceedWithResult:(id)result{
+    NSLog(@"同步到新浪微博成功!");
+    if (_isMode) {
+        [self dismissViewControllerAnimated:YES completion:nil];
+    }else {
+        [self.navigationController popViewControllerAnimated:YES];
+    }
+}
+
+@end

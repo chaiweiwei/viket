@@ -1,0 +1,15 @@
+//
+//  ALDBaseWebViewController.h
+//  FunCat
+//
+//  Created by chen yulong on 14/11/10.
+//  Copyright (c) 2014年 skk. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+
+@interface ALDBaseWebViewController : UIViewController{
+    __weak UIWebView *_webView;
+}
+
+@end

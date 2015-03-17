@@ -1,0 +1,29 @@
+//
+//  UserBean.m
+//  OpenApi
+//  用户bean
+//  Created by yulong chen on 13-1-18.
+//  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+//
+
+#import "UserBean.h"
+
+@implementation UserBean
+@synthesize uid=_uid,name=_name,avator=_avator,lat=_lat,lng=_lng,rang=_rang,signature=_signature;
+@synthesize pinyin=_pinyin,lastTraceTime=_lastTraceTime;
+
+@synthesize note=_note;
+
+- (void)dealloc
+{
+    [_name release];
+    [_avator release];
+    [_lat release];
+    [_lng release];
+    [_signature release];
+    [_pinyin release];
+    [_lastTraceTime release];
+    [_note release];
+    [super dealloc];
+}
+@end

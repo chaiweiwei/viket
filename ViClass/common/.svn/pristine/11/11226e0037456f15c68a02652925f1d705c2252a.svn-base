@@ -1,0 +1,28 @@
+//
+//  RegistViewController.h
+//  OpenApi
+//
+//  Created by aaa a on 13-1-19.
+//  Copyright (c) 2013年 qw. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import "OpenApiHttpClient.h"
+#import "BaseViewController.h"
+
+
+@interface RegistViewController : BaseViewController<UITextFieldDelegate,ALDDataLoadStateDelegate>{
+    UIView *myview;
+    BOOL userExist;
+}
+@property(retain,nonatomic)UITextField *userEmail;
+@property(retain,nonatomic)UITextField *pwdText;
+@property(retain,nonatomic)UITextField *surepwdText;
+@property(retain,nonatomic)UITextField *userNameText;
+@property(retain,nonatomic)UISegmentedControl *genderView;
+@property(retain,nonatomic)UITextField *companyText;
+@property(retain,nonatomic)UITextField * positionText;
+
+@property(assign,nonatomic) UIViewController *rootController;
+
+@end

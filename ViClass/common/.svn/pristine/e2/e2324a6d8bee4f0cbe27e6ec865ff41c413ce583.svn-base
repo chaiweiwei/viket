@@ -1,0 +1,436 @@
+//
+//  ALDUtils.h
+//  hyt
+//
+//  Created by yulong chen on 12-4-12.
+//  Copyright (c) 2012年 qw. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
+#import "ViewsLocalizedString.h"
+#import "NSNullAdditions.h"
+
+typedef enum {
+    UISingleClick  = 0,
+    UIDoubleClick     = 1,
+    UITouchMove  = 2,
+    UITouchInside = 3
+} UIViewTouchType;
+
+typedef enum {
+    UIPushFromStateNone=0, //无
+    UIPushFromStateLogin=1, //登陆界面push进去
+    UIPushFromStateApply=2, //预登记界面push进去
+    UIPushFromStateClickBtn=3, //按钮点击push进去
+    UIPushFromStateApplyTips=4, //预登记提示界面push进去
+    UIPushFromStateSignView=5, //二维码签到界面进去
+} UIPushFromState;
+
+//UITextField或UITextView的textAlignment属性值定义
+#ifdef __IPHONE_6_0
+# define TEXT_ALIGN_LEFT NSTextAlignmentLeft
+# define TEXT_ALIGN_CENTER NSTextAlignmentCenter
+# define TEXT_ALIGN_Right NSTextAlignmentRight
+
+//Text break mode define
+#define LineBreakModeWordWrap NSLineBreakByWordWrapping // Wrap at word boundaries
+#define LineBreakModeCharacterWrap NSLineBreakByCharWrapping  // Wrap at character boundaries
+#define LineBreakModeClip NSLineBreakByClipping   // Simply clip when it hits the end of the rect
+#define LineBreakModeHeadTruncation NSLineBreakByTruncatingHead  // Truncate at head of line: "...wxyz". Will truncate multiline text on first line
+#define LineBreakModeTailTruncation NSLineBreakByTruncatingTail // Truncate at tail of line: "abcd...". Will truncate multiline text on last line
+#define LineBreakModeMiddleTruncation NSLineBreakByTruncatingMiddle
+
+#else
+# define TEXT_ALIGN_LEFT UITextAlignmentLeft
+# define TEXT_ALIGN_CENTER UITextAlignmentCenter
+# define TEXT_ALIGN_Right UITextAlignmentRight
+
+//Text break mode define
+#define LineBreakModeWordWrap UILineBreakModeWordWrap // Wrap at word boundaries
+#define LineBreakModeCharacterWrap UILineBreakModeCharacterWrap  // Wrap at character boundaries
+#define LineBreakModeClip UILineBreakModeClip   // Simply clip when it hits the end of the rect
+#define LineBreakModeHeadTruncation UILineBreakModeHeadTruncation  // Truncate at head of line: "...wxyz". Will truncate multiline text on first line
+#define LineBreakModeTailTruncation UILineBreakModeTailTruncation // Truncate at tail of line: "abcd...". Will truncate multiline text on last line
+#define LineBreakModeMiddleTruncation UILineBreakModeMiddleTruncation
+
+#endif
+
+#pragma marks arc compatible ####################
+#if ! __has_feature(objc_arc)
+#define ALDAutorelease(__v) ([__v autorelease]);
+#define ALDReturnAutoreleased ALDAutorelease
+
+#define ALDRetain(__v) ([__v retain]);
+#define ALDReturnRetained ALDRetain
+
+#define ALDRelease(__v) ([__v release]);
+
+#define ALDDispatchQueueRelease(__v) (dispatch_release(__v));
+#else
+// -fobjc-arc
+#define ALDAutorelease(__v)
+#define ALDReturnAutoreleased(__v) (__v)
+
+#define ALDRetain(__v)
+#define ALDReturnRetained(__v) (__v)
+
+#define ALDRelease(__v)
+
+// If OS_OBJECT_USE_OBJC=1, then the dispatch objects will be treated like ObjC objects
+// and will participate in ARC.
+// See the section on "Dispatch Queues and Automatic Reference Counting" in "Grand Central Dispatch (GCD) Reference" for details.
+#if OS_OBJECT_USE_OBJC
+#define ALDDispatchQueueRelease(__v)
+#else
+#define ALDDispatchQueueRelease(__v) (dispatch_release(__v));
+#endif
+#endif
+
+#if !__has_feature(objc_instancetype)
+#ifndef instancetype
+#define instancetype id
+#endif
+#endif
+
+#pragma end ###################################
+//收到内存警告通知
+#define kDidReceiveMemoryWarningNotification @"DidReceiveMemoryWarningNotification"
+
+#define kWaitingViewTag 1999 //等待
+#define kToastTag 2001 //提示
+#define kTipsTextTag 2012 //提示信息tag
+#define kNeedRingKey @"need_ring"
+
+#define ALDLocalizedStringNoDef(key) \
+[[NSBundle mainBundle] localizedStringForKey:(key) value:@"" table:nil]
+#define ALDLocalizedString(key, defValue) \
+[[NSBundle mainBundle] localizedStringForKey:(key) value:defValue table:nil]
+#define ALDLocalizedStringFromTable(key, tbl, defValue) \
+[[NSBundle mainBundle] localizedStringForKey:(key) value:defValue table:(tbl)]
+
+//判断系统是否ios7之后版本
+#define isIOS6  ([[[UIDevice currentDevice]systemVersion]floatValue]<7)
+#define isIOS8  ([[[UIDevice currentDevice]systemVersion]floatValue]>=8)
+#define isIOS7 floor(NSFoundationVersionNumber) <= NSFoundationVersionNumber_iOS_6_1?NO:YES
+//判断是否是iPad
+#define isIPAD (__IPHONE_OS_VERSION_MAX_ALLOWED >= 30200 && UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad)
+
+@interface UIWebView (JavaScriptAlert)
+
+- (void)webView:(UIWebView *)sender runJavaScriptAlertPanelWithMessage:(NSString *)message initiatedByFrame:(id)frame;
+
+@end
+
+@interface ALDUtils : NSObject
+
+/** 将字符串时间转换成NSDate **/
++(NSDate *) getDateWithString:(NSString *)strDate format:(NSString *)format;
+
+/** 获取指定格式的当前系统时间字符串 **/
++(NSString *) getFormatDate:(NSString *) format;
+
+/** 获取给定日期的指定格式字符串 **/
++(NSString *) getFormatDate:(NSString *) format withDate:(NSDate *) date;
+
+/** 获取给定日期的指定格式字符串 **/
++(NSString *) getFormatDateWithString:(NSString *) strDate withOldFormat:(NSString *)oldFormat withNewFormat:(NSString *) newFormat;
+
+//将字符串转换成json对象的NSDictionary或NSArray
++(id) getJSONObjectFromString:(NSString *) str;
+
+/**
+ * 将字典和数组混合的多层多层次数据转化为JSON数据
+ * obj为字典或数组<字典>
+ */
++(NSString *)getJSONStringFromObj:(id)obj;
+
+/**
+ * 将字典和数组混合的多层多层次数据转化为JSON数据
+ * @param obj为字典或数组<字典>
+ * @param error 返回的错误
+ * @return 返回json格式字符串
+ */
++(NSString *) getJSONStringFromObj:(id)obj withError:(NSError **)error;
+
+/**
+ * 将键值放入目标字典里，对NSMutableDictionary进行了封装，nil值进行了过滤，防止crash
+ * key 键名
+ * value 值
+ */
++(void) dictionarySetValue:(NSMutableDictionary *) dic key:(id)key value:(id)value;
+
+/**
+ * 将键值放入目标字典里，对NSMutableDictionary进行了封装，nil值进行了过滤，防止crash
+ * key 键名
+ * value 值
+ * defaultValue 默认值，当value为nil时使用该值代替
+ */
++(void) dictionarySetValue:(NSMutableDictionary *) dic key:(id)key value:(id)value withDefault:(id) defaultVaule;
+
+/**
+ * 保存数据到tmp文件夹
+ * @param filename 文件名
+ * @param data 要保存的数据
+ * 成功返回YES,失败返回NO
+ **/
++(BOOL) saveDataToTmpFile:(NSString *) filename withData:(NSString *) data;
+
+/**
+ * 读取tmp文件数据
+ * @param filename 文件名
+ * 成功返回字符串数据，失败返回nil
+ **/
++(NSString *) readDataFromTmpFile:(NSString *) filename;
+
+/**
+ * 删除tmp文件数据
+ * @param filename 文件名
+ **/
++(void) deleteTmpFile:(NSString *) filename;
+
+/**
+ * 将之前添加的等待或提示信息移除
+ * @param rootView 之前添加到的根视图
+ **/
++(void)removeWaitingView:(UIView *) rootView;
+
+/**
+ * 添加等待状态信息，如果有提示状态则更改
+ * @param rootView 等待视图添加到的根视图
+ * @param text 提示文字
+ */
++(void) addWaitingView:(UIView *) rootView withText:(NSString *) text;
+
+
+/**
+ * 添加等待状态信息，如果有提示状态则更改
+ * @param rootView 等待视图添加到的根视图
+ * @param frame
+ * @param text 提示文字
+ */
++ (void) addWaitingView:(UIView *) rootView frame:(CGRect)frame withText:(NSString *) text;
+
+/**
+ * 添加提示信息，如果有等待状态则更改
+ * @param rootView 等待视图添加到的根视图
+ * @param text 提示文字
+ */
++(void)changeWaitingViewStatus:(UIView *)rootView withText:(NSString *) text;
+
+/**
+ * 显示Toast提示信息，提示信息2秒后消失
+ * @param text 提示文字
+ */
++(void) showToast:(NSString *) text;
+
+/**
+ * 显示Toast提示信息，提示信息2秒后消失
+ * @param text 提示文字
+ * @param interval 提示信息显示时长，单位秒
+ */
++(void) showToast:(NSString *) text withInterval:(float) interval;
+
+/**
+ * 显示Toast提示信息，提示信息2秒后消失
+ * @param rootView 等待视图添加到的根视图
+ * @param text 提示文字
+ */
++(void) showToast:(UIView *)rootView withText:(NSString *) text;
+
+/**
+ * 显示Toast提示信息，提示信息interval秒后消失
+ * @param rootView 等待视图添加到的根视图
+ * @param text 提示文字
+ * @param interval 提示信息显示时长，单位秒
+ */
++(void) showToast:(UIView *)rootView withText:(NSString *) text withInterval:(float) interval;
+
+/**
+ * 显示提示信息
+ * @param parentView 父级视图
+ * @param text 提示文字
+ **/
++(UILabel*) showTips:(UIView *)parentView text:(NSString *)text;
+
+/**
+ * 显示提示信息
+ * @param parentView 父级视图
+ * @param frame 提示信息的frame
+ * @param text 提示文字
+ **/
++(UILabel*) showTips:(UIView *) parentView frame:(CGRect)frame text:(NSString*) text;
+
+/**
+ * 显示提示信息
+ * @param parentView 父级视图
+ * @param frame 提示信息的frame
+ * @param text 提示文字
+ * @param color 文字颜色
+ **/
++(UILabel*) showTips:(UIView *) parentView frame:(CGRect)frame text:(NSString*) text textColor:(UIColor*)color;
+
+/**
+ * 隐藏提示信息
+ * @param parentView 父级视图
+ **/
++(void) hiddenTips:(UIView*) parentView;
+
++(BOOL) isImage:(NSString *) url;
+
++(void) showAlert:(NSString*) title strForMsg:(NSString*) msg withTag:(NSInteger) tag otherButtonTitles:(NSString*) btnTitle;
+
++(void) showAlert:(NSString*) title strForMsg:(NSString*) msg withTag:(NSInteger) tag withDelegate:(id<UIAlertViewDelegate>)delegate otherButtonTitles:(NSString*) btnTitle;
+
++(void) showAlert:(NSString*) title strForMsg:(NSString*) msg withTag:(NSInteger) tag withDelegate:(id<UIAlertViewDelegate>)delegate cancelButtonTitle:(NSString *)cancelButtonTitle otherButtonTitles:(NSString*) btnTitle;
+
+//计算单行文本占用高度
++(CGFloat) captureTextHeightWithText:(NSString *) text font:(UIFont *)font;
+
+//计算文本占用高度和宽度
++(CGSize) captureTextSizeWithText:(NSString *) text textWidth:(float)width font:(UIFont *)font;
+
+/**
+ * 格式化展览时间
+ * @param beginTime 活动开始时间
+ * @param endTime 活动结束时间
+ * @return 格式化后的时间
+ **/
++(NSString *) delExhibDate:(NSString *)beginTime endTime:(NSString *)endTime;
+
+/**
+ * 格式化活动时间
+ * @param beginTime 活动开始时间
+ * @param endTime 活动结束时间
+ * @return 格式化后的时间
+ **/
++(NSString *) delEventDate:(NSString *)beginTime endTime:(NSString *)endTime;
+
+/** 
+ * 处理实时互动数据时间
+ * @param strDate 要处理的时间
+ * @return 返回处理后的时间
+ **/
++(NSString*) delRealTimeData:(NSString*)strDate;
+
+/**
+ *  判断当前时间是否在给定时间范围内
+ *  @param startTime 开始时间
+ *  @param endTime 结束时间
+ **/
++(BOOL) isOngoing:(NSString*)startTime endTime:(NSString*)endTime;
+
+/**
+ * 统计文本字数
+ * @param text 要统计的文本
+ **/
++(int) captureTextCount:(NSString *)text;
+
+/**
+ *  将Url参数转换成字典
+ *  @param query url参数
+ *  @result 返回处理后的结果
+ **/
++(NSMutableDictionary *) getUrlParams:(NSString *)query;
+
+/**
+ * 根据类型和源id查询本地通知是否已存在
+ * @param type 消息类型，1：议程 3：活动
+ * @param sid 源id
+ * @return 如果存在则返回该UILocalNotification对象
+ **/
++(UILocalNotification *) findLocalNotify:(int) type withSid:(NSString*)sid;
+
+/**
+ * 添加到本地通知，本地通知数量上有限制，最大支持64个，超过将忽略
+ * @param title 消息标题
+ * @param body 提示消息体
+ * @param userInfo 消息体携带的userInfo字典信息，字典信息需包含type(消息类型,1：议程 3：活动)和sid(源id)字段
+ * @param fireDate 消息提醒时间
+ **/
++(void) addLocalNotify:(NSString *)title body:(NSString *)body userInfo:(NSDictionary*)userInfo fireDate:(NSDate*)fireDate;
+
+/**
+ * 根据类型和源id查询本地通知是否已存在
+ * @param type 消息类型，1：议程 3：活动
+ * @param sid 源id
+ **/
++(void) cancelLocalNotify:(int)type withSid:(NSString*)sid;
+
+/**
+ * 验证邮箱合法性
+ * @param email 待验证的邮箱
+ * @return 返回验证后的结果
+ **/
++(BOOL)isValidateEmail:(NSString *)email;
+
+/**
+ * 验证电话号码合法性
+ * @param phoneNumer 待验证的电话号码
+ * @return 返回验证后的结果
+ **/
++(BOOL) isValidatePhoneNumber:(NSString*) phoneNumer;
+
+/**
+ * 验证手机号合法性
+ * @param phoneNumer 待验证的手机号
+ * @return 返回验证后的结果
+ **/
++(BOOL) isValidateMobile:(NSString*) phoneNumer;
+
+/**
+ * 创建压缩图片
+ * @param image 源图片
+ * @param thumbSize 要压缩的理想尺寸，该函数会根据图片大小和设定尺寸智能调整压缩尺寸
+ * @param fileSize 文件压缩后的大小，若图片压缩后大于该值，则使用percent进行再次压缩，单位kb
+ * @param percent 图片压缩质量比例
+ **/
++ (UIImage*)createScaleImage:(UIImage *)image size:(CGSize )thumbSize maxFileSize:(CGFloat)fileSize percent:(float)percent;
+
+/**
+ * 图片压缩并保存到本地
+ **/
++(NSString *)saveImage:(UIImage *)image quality:(CGFloat) quality;
+
+/**
+ * 获取国际化的字符串，并格式化
+ * @param defValue 默认值
+ * @param key...参数
+ * @return 返回格式化后的字符串
+ **/
++(NSString*) formatLocalizedString:(NSString *)defValue key:(NSString *)key, ...;
+
+/**
+ * 根据两点间经纬度坐标（double值），计算两点间距离，单位为米
+ * @param lng1 经度1
+ * @param lat1 纬度1
+ * @param lng2 经度2
+ * @param lat2 纬度2
+ * @return 返回计算后的距离
+ */
++(double) getDistanceWithLng1:(double) lng1 lat1:(double) lat1 lng2:(double) lng2 lat2:(double) lat2;
+
+/**
+ * 截取字符串
+ * @param text 待截取的字符串
+ * @param encoding 字符串编码
+ * @param length 需截取的长度，此为字节长度
+ * @return 返回截取后的字符串
+ **/
++(NSString*) cutStringWithText:(NSString*)text textEncoding:(NSStringEncoding) encoding length:(int) length;
+
+/**
+ * 创建并显示UIActionSheet
+ * @param title 标题
+ * @param delegate UIActionSheet的委托实例
+ * @param controller UIActionSheet要显示到的视图控制器上
+ * @param buttons  UIActionSheet上的按钮，取[Object description]为显示标题
+ * @param tag tag属性值
+ **/
++(void) showActionSheetWithTitle:(NSString*) title
+                        delegate:(id<UIActionSheetDelegate>)delegate
+                         controller:(UIViewController*) controller
+                            buttons:(NSArray*) buttons
+                                tag:(int) tag;
+
+@end

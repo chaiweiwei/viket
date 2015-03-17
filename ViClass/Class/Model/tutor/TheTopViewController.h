@@ -1,0 +1,25 @@
+//
+//  TutorListViewController.h
+//  WeTalk
+//
+//  Created by x-Alidao on 14/12/4.
+//  Copyright (c) 2014年 skk. All rights reserved.
+//
+
+#import "BaseViewController.h"
+#import "PullingRefreshTableView.h"
+#import "ALDUtils.h"
+
+@interface TheTopViewController : BaseViewController<UITableViewDataSource, UITableViewDelegate, PullingRefreshTableViewDelegate, UIGestureRecognizerDelegate> {
+    int  _iPage;             //列表页码
+    int  _iPageSize;         //列表行数
+    BOOL _bDataListHasNext;  //是否还有下拉数据
+}
+
+@property (nonatomic, retain) PullingRefreshTableView *pullTableView;//列表
+@property (nonatomic, retain) NSMutableArray          *tableData;//列表数据
+@property (nonatomic        ) BOOL                    bRefreshing;
+
+-(void) launchRefreshing;
+
+@end

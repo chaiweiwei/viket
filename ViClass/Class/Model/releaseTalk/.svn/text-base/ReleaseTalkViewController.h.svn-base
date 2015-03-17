@@ -1,0 +1,16 @@
+//
+//  ReleaseTalkViewController.h
+//  WeTalk
+//
+//  Created by x-Alidao on 14/12/4.
+//  Copyright (c) 2014年 skk. All rights reserved.
+//
+
+#import "BaseViewController.h"
+
+@interface ReleaseTalkViewController : BaseViewController
+
+/** 1.首页 **/
+@property (nonatomic) NSInteger toController;
+
+@end

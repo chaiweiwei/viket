@@ -1,0 +1,196 @@
+//
+//  WBEngine.h
+//  SinaWeiBoSDK
+//  Based on OAuth 2.0
+//
+//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+//  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+//  OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+//  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+//  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+//  WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+//  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+//  OTHER DEALINGS IN THE SOFTWARE.
+//
+//  Copyright 2011 Sina. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+#import "WBRequest.h"
+#import "WBAuthorize.h"
+#import "GlobalValues.h"
+typedef enum {
+    WeiboRequestPathForOAuth, //用户授权
+    WeiboRequestPathForShowUser, //查询用户信息
+    WeiboRequestPathForFasong, //发送微博
+    WeiboRequestPathForZhuanfa, //转发微博
+    WeiboRequestPathForPinglun, //评论微博
+    WeiboRequestPathForCreateFreinds, //关注用户
+    WeiboRequestPathForDestroyFreinds, //取消关注
+    WeiboRequestPathForOther, //取消关注
+} WeiboRequestPath;
+
+@class WBEngine;
+
+@protocol WBEngineDelegate <NSObject>
+
+@optional
+
+// If you try to log in with logIn or logInUsingUserID method, and
+// there is already some authorization info in the Keychain,
+// this method will be invoked.
+// You may or may not be allowed to continue your authorization,
+// which depends on the value of isUserExclusive.
+- (void)engineAlreadyLoggedIn:(WBEngine *)engine;
+
+// Log in successfully.
+- (void)engineDidLogIn:(WBEngine *)engine;
+
+// Failed to log in.
+// Possible reasons are:
+// 1) Either username or password is wrong;
+// 2) Your app has not been authorized by Sina yet.
+- (void)engine:(WBEngine *)engine didFailToLogInWithError:(NSError *)error;
+
+// Log out successfully.
+- (void)engineDidLogOut:(WBEngine *)engine;
+
+// When you use the WBEngine's request methods,
+// you may receive the following four callbacks.
+- (void)engineNotAuthorized:(WBEngine *)engine;
+- (void)engineAuthorizeExpired:(WBEngine *)engine;
+
+- (void)engine:(WBEngine *)engine requestDidFailWithError:(NSError *)error;
+- (void)engine:(WBEngine *)engine requestDidSucceedWithResult:(id)result;
+
+@end
+
+@interface WBEngine : NSObject <WBAuthorizeDelegate, WBRequestDelegate>
+{
+    NSString        *appKey;
+    NSString        *appSecret;
+    
+    NSString        *userID;
+    NSString        *screenName;
+    NSString        *accessToken;
+    NSTimeInterval  expireTime;
+    NSString *_openKey;
+    
+    NSString *_keychainPrefix;
+    
+    NSString        *redirectURI;
+    
+    // Determine whether user must log out before another logging in.
+    BOOL            isUserExclusive;
+    
+    WBRequest       *request;
+    WBAuthorize     *authorize;
+    
+    id<WBEngineDelegate> delegate;
+    
+    UIViewController *rootViewController;
+}
+
+@property (nonatomic, retain) NSString *appKey;
+@property (nonatomic, retain) NSString *appSecret;
+@property (nonatomic, retain) NSString *userID;
+@property (nonatomic, retain) NSString *screenName;
+@property (nonatomic, retain) NSString *accessToken;
+@property (nonatomic, assign) NSTimeInterval expireTime;
+@property (nonatomic, retain) NSString *openKey;
+@property (nonatomic, retain) NSString *keychainPrefix;
+@property (nonatomic, retain) NSString *redirectURI;
+@property (nonatomic, assign) BOOL isUserExclusive;
+@property (nonatomic, retain) WBRequest *request;
+@property (nonatomic, retain) id authorize;
+@property (nonatomic, retain) id<WBEngineDelegate> delegate;
+@property (nonatomic, assign) UIViewController *rootViewController;
+@property (nonatomic) WeiboRequestPath requestPath;
+@property (nonatomic) WeiboType weiboType;
+@property (nonatomic) BOOL hasBackBtn;
+
+@property (nonatomic) BOOL isChangeLogin;
+@property (nonatomic) BOOL isMode;
+
+// Initialize an instance with the AppKey and the AppSecret you have for your client.
+- (id)initWithAppKey:(NSString *)theAppKey appSecret:(NSString *)theAppSecret;
+
+- (void)readAuthorizeDataFromKeychain;
+
+- (void) saveScreenName:(NSString *) screenName;
+
+// Log in using OAuth Web authorization.
+// If succeed, engineDidLogIn will be called.
+- (void)logIn;
+
+// Log in using OAuth Client authorization.
+// If succeed, engineDidLogIn will be called.
+- (void)logInUsingUserID:(NSString *)theUserID password:(NSString *)thePassword;
+
+// Log out.
+// If succeed, engineDidLogOut will be called.
+- (void)logOut;
+
+// Check if user has logged in, or the authorization is expired.
+- (BOOL)isLoggedIn;
+- (BOOL)isAuthorizeExpired;
+
+// @methodName: The interface you are trying to visit, exp, "statuses/public_timeline.json" for the newest timeline.
+// See 
+// http://open.weibo.com/wiki/API%E6%96%87%E6%A1%A3_V2
+// for more details.
+// @httpMethod: "GET" or "POST".
+// @params: A dictionary that contains your request parameters.
+// @postDataType: "GET" for kWBRequestPostDataTypeNone, "POST" for kWBRequestPostDataTypeNormal or kWBRequestPostDataTypeMultipart.
+// @httpHeaderFields: A dictionary that contains HTTP header information.
+- (void)loadRequestWithMethodName:(NSString *)methodName
+                       httpMethod:(NSString *)httpMethod
+                           params:(NSDictionary *)params
+                     postDataType:(WBRequestPostDataType)postDataType
+                 httpHeaderFields:(NSDictionary *)httpHeaderFields;
+
+
+/**
+ * 查看用户信息
+ * @param wuid 微博用户id
+ */
+-(void) showUser:(NSString *) wuid;
+
+/**
+ * 发送微博
+ * @param text 微博文本内容
+ * @param image 带图片的微博,可空
+ * @param lat 纬度
+ * @param lng 经度
+ **/
+- (void)sendWeiBoWithText:(NSString *)text image:(UIImage *)image lat:(NSString*)lat lng:(NSString*)lng;
+
+/**
+ * 转发微博
+ * @param text 内容
+ * @param 转发微博的id
+ */
+- (void)repostWeiboWithText:(NSString *) text weibId:(NSString *)weiboId;
+
+/**
+ * 评论微博
+ * @param text 内容
+ * @param 待评论微博的id
+ */
+-(void) commentsWeiboWithText:(NSString *)text weiboId:(NSString *)weiboId;
+
+/**
+ * 关注某用户
+ * @param uid 待关注的微博用户id uid与screenName必须二选一
+ * @param screenName 微博昵称，如果uid为空，则使用此参数
+ **/
+-(void) friendshipsCreate:(NSString *) uid screenName:(NSString*)nick;
+
+/**
+ * 取消关注某用户
+ * @param uid 待取消关注的微博用户id uid与screenName必须二选一
+ * @param screenName 微博昵称，如果uid为空，则使用此参数
+ **/
+-(void) friendshipsDestroy:(NSString *) uid screenName:(NSString *)nick;
+@end

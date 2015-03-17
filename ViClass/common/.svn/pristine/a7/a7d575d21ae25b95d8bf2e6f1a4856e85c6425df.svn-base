@@ -1,0 +1,71 @@
+//
+//  WeixinDelegateImpl.h
+//  OpenApi
+//  微信开发平台委托实现
+//  Created by chen yulong on 13-6-13.
+//
+//
+
+#import <Foundation/Foundation.h>
+#import "WXApi.h"
+
+@interface WeixinDelegateImpl : NSObject<WXApiDelegate>
+@property (nonatomic) int scene;
+
+/**
+ * 初始化微信委托
+ * @param appid 微信开放平台id
+ * @return 返回对象
+ **/
+-(id) initWithAppid:(NSString *) appId;
+
+- (void) viewContent:(WXMediaMessage *) msg;
+
+//- (BOOL)doAuth;
+
+-(void) changeScene:(NSInteger)scene;
+
+-(void) onSentTextMessage:(BOOL) bSent;
+
+-(void) onSentMediaMessage:(BOOL) bSent;
+
+-(void) onShowMediaMessage:(WXMediaMessage *) message;
+
+-(void) onRequestAppMessage;
+
+- (BOOL) sendImageContent:(UIImage*) image filePath:(NSString*) filePath;
+
+- (BOOL) RespImageContent:(UIImage*) image filePath:(NSString*) filePath;
+
+/**
+ * 发送新闻资讯
+ **/
+- (BOOL) sendNewsContent:(NSString *)title content:(NSString*)content image:(UIImage*)image url:(NSString*)url;
+
+-(BOOL) RespNewsContent:(NSString*) title content:(NSString*)content image:(UIImage*) image url:(NSString*)url;
+
+-(BOOL) sendMusicContent:(NSString *)title content:(NSString*)content musicUrl:(NSString*)musicUrl musicDataUrl:(NSString*)musicDataUrl;
+
+-(BOOL) RespMusicContent:(NSString *)title content:(NSString*)content musicUrl:(NSString*)musicUrl musicDataUrl:(NSString*)musicDataUrl;
+
+-(BOOL) sendVideoContent:(NSString *)title content:(NSString*)content image:(UIImage*)image videoUrl:(NSString*)videoUrl;
+
+-(BOOL) RespVideoContent:(NSString *)title content:(NSString*)content image:(UIImage*)image videoUrl:(NSString*)videoUrl;
+
+- (BOOL) sendTextContent:(NSString*)nsText;
+
+-(BOOL) RespTextContent:(NSString *)nsText;
+
+- (BOOL) sendAppContent:(NSString *)title content:(NSString*)content image:(UIImage*)image appUrl:(NSString*)appUrl extInfo:(NSString*)extInfo filePath:(NSString*)filePath;
+
+-(BOOL) RespAppContent:(NSString *)title content:(NSString*)content image:(UIImage*)image appUrl:(NSString*)appUrl extInfo:(NSString*)extInfo filePath:(NSString*)filePath;
+
+- (BOOL) sendNonGifContent:(UIImage*)image filePath:(NSString*)filePath;
+
+- (BOOL)RespNonGifContent:(UIImage*)image filePath:(NSString*)filePath;
+
+- (BOOL) sendGifContent:(UIImage*)image filePath:(NSString*)filePath;
+
+- (BOOL)RespGifContent:(UIImage*)image filePath:(NSString*)filePath;
+
+@end

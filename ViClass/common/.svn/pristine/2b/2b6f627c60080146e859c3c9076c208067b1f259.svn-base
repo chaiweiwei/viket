@@ -1,0 +1,374 @@
+//
+//  WBAuthorize.m
+//  SinaWeiBoSDK
+//  Based on OAuth 2.0
+//
+//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+//  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+//  OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+//  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+//  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+//  WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+//  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+//  OTHER DEALINGS IN THE SOFTWARE.
+//
+//  Copyright 2011 Sina. All rights reserved.
+//
+
+#import "WBAuthorize.h"
+#import "WBRequest.h"
+#import "WeiboAuthorizeVIewConroller.h"
+
+#define kWBSinaAuthorizeURL     @"https://api.weibo.com/oauth2/authorize"
+#define kWBSinaAccessTokenURL   @"https://api.weibo.com/oauth2/access_token"
+
+#define kWBTecentOauthURL @"https://open.t.qq.com/cgi-bin/oauth2/authorize"
+#define kWBTecentAccessTokenURL @"https://open.t.qq.com/cgi-bin/oauth2/access_token"
+
+#define kWBWyAuthorizeURL     @"https://api.t.163.com/oauth2/authorize"
+#define kWBWyAccessTokenURL   @"https://api.t.163.com/oauth2/access_token"
+
+@interface WBAuthorize (Private)
+
+- (void)dismissModalViewController;
+- (void)requestAccessTokenWithAuthorizeCode:(NSString *)code;
+- (void)requestAccessTokenWithUserID:(NSString *)userID password:(NSString *)password;
+-(NSMutableDictionary *) getParams:(NSURL *)url;
+@end
+
+@implementation WBAuthorize
+
+@synthesize appKey;
+@synthesize appSecret;
+@synthesize redirectURI;
+@synthesize request;
+@synthesize rootViewController;
+@synthesize delegate;
+@synthesize weiboType;
+@synthesize isChangeLogin;
+@synthesize hasBackBtn=_hasBackBtn;
+@synthesize isMode=_isMode;
+
+#pragma mark - WBAuthorize Life Circle
+
+- (id)initWithAppKey:(NSString *)theAppKey appSecret:(NSString *)theAppSecret
+{
+    if (self = [super init])
+    {
+        self.appKey = theAppKey;
+        self.appSecret = theAppSecret;
+    }
+    
+    return self;
+}
+
+- (void)dealloc
+{
+    //NSLog(@"WBAuthorize dealloc:%@",self);
+    self.appKey = nil;
+    self.appSecret = nil;
+    self.redirectURI = nil;
+    
+    [request setDelegate:nil];
+    [request disconnect];
+    self.request = nil;
+    self.delegate=nil;
+    
+#if ! __has_feature(objc_arc)
+    [super dealloc];
+#endif
+}
+
+#pragma mark - WBAuthorize Private Methods
+
+- (void)dismissModalViewController
+{
+    [rootViewController dismissViewControllerAnimated:YES completion:^{
+        
+    }];
+}
+
+- (void)requestAccessTokenWithAuthorizeCode:(NSString *)code
+{
+    NSDictionary *params = [NSDictionary dictionaryWithObjectsAndKeys:appKey, @"client_id",
+                                                                      appSecret, @"client_secret",
+                                                                      @"authorization_code", @"grant_type",
+                                                                      redirectURI, @"redirect_uri",
+                                                                      code, @"code", nil];
+    [request disconnect];
+    NSString *baseUrl=nil;
+    if (weiboType==TypeTecentWeibo) {
+        baseUrl=kWBTecentAccessTokenURL;
+    }else if (weiboType==TypeWyWeibo) {
+        baseUrl=kWBWyAccessTokenURL;
+    }else {
+        baseUrl=kWBSinaAccessTokenURL;
+    }
+    
+    self.request = [WBRequest requestWithURL:baseUrl
+                                   httpMethod:@"POST"
+                                       params:params
+                                 postDataType:kWBRequestPostDataTypeNormal
+                             httpHeaderFields:nil 
+                                     delegate:self];
+    
+    [request connect];
+}
+
+- (void)requestAccessTokenWithUserID:(NSString *)userID password:(NSString *)password
+{
+    NSDictionary *params = [NSDictionary dictionaryWithObjectsAndKeys:appKey, @"client_id",
+                                                                      appSecret, @"client_secret",
+                                                                      @"password", @"grant_type",
+                                                                      redirectURI, @"redirect_uri",
+                                                                      userID, @"username",
+                                                                      password, @"password", nil];
+    
+    [request disconnect];
+    NSString *baseUrl=nil;
+    if (weiboType==TypeTecentWeibo) {
+        baseUrl=kWBTecentAccessTokenURL;
+    }else if (weiboType==TypeWyWeibo) {
+        baseUrl=kWBWyAccessTokenURL;
+    }else {
+        baseUrl=kWBSinaAccessTokenURL;
+    }
+    self.request = [WBRequest requestWithURL:baseUrl
+                                   httpMethod:@"POST"
+                                       params:params
+                                 postDataType:kWBRequestPostDataTypeNormal
+                             httpHeaderFields:nil 
+                                     delegate:self];
+    
+    [request connect];
+}
+
+-(NSMutableDictionary *) getParams:(NSURL *)url{
+    if(!url || ![url isKindOfClass:[NSURL class]]){
+        return nil;
+    }
+    NSString * query=url.query;
+    if(!query || [query isEqualToString:@""]){
+        NSArray * params=[url.absoluteString componentsSeparatedByString:@"#"];
+        if(params.count>1){
+            query=[params objectAtIndex:1];
+        }
+    }
+    
+    if(!query || [query isEqualToString:@""]){
+        return nil;
+    }
+    
+    //query=[query stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+    NSMutableDictionary *result=[NSMutableDictionary dictionary];
+    NSArray *params=[query componentsSeparatedByString:@"&"];
+    for(NSString *str in params){
+        NSArray *tmp=[str componentsSeparatedByString:@"="];
+        if (tmp.count<2) {
+            continue;
+        }
+        NSString *key=[[tmp objectAtIndex:0] stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+        key=[key stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        NSString *value=[[tmp objectAtIndex:1] stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+        value=[value stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        [result setValue:value forKey:key];
+    }
+    return result;
+}
+
+#pragma mark - WBAuthorize Public Methods
+
+- (void)startAuthorize
+{
+    NSMutableDictionary *params = nil;
+    NSString *urlString =nil;
+    if (weiboType==TypeTecentWeibo) {
+        params = [NSMutableDictionary dictionaryWithObjectsAndKeys:
+                  appKey, @"client_id",
+                  @"token", @"response_type",
+                  @"2", @"wap",
+                  redirectURI, @"redirect_uri",
+                  @"ios", @"appfrom",
+                  nil];
+        if (isChangeLogin) {
+            [params setObject:[NSString stringWithFormat:@"%ld",(long)[[NSDate date] timeIntervalSince1970]] forKey:@"time"];
+        }
+        urlString = [WBRequest serializeURL:kWBTecentOauthURL
+                                     params:params
+                                 httpMethod:@"GET"];
+    }else if (weiboType==TypeWyWeibo) {
+        params=[NSMutableDictionary dictionaryWithObjectsAndKeys:appKey, @"client_id",
+                @"token", @"response_type",
+                redirectURI, @"redirect_uri", 
+                @"mobile", @"display", nil];
+        if (isChangeLogin) {
+            [params setObject:[NSString stringWithFormat:@"%ld",(long)[[NSDate date] timeIntervalSince1970]] forKey:@"time"];
+        }
+        urlString = [WBRequest serializeURL:kWBWyAuthorizeURL
+                                     params:params
+                                 httpMethod:@"GET"];
+    }else {
+        params=[NSMutableDictionary dictionaryWithObjectsAndKeys:appKey, @"client_id",
+                @"code", @"response_type",
+                redirectURI, @"redirect_uri", 
+                @"mobile", @"display", nil];
+        if (isChangeLogin) {
+            [params setObject:[NSString stringWithFormat:@"%ld",(long)[[NSDate date] timeIntervalSince1970]] forKey:@"time"];
+        }
+        urlString = [WBRequest serializeURL:kWBSinaAuthorizeURL
+                                     params:params
+                                 httpMethod:@"GET"];
+    }
+    WeiboAuthorizeVIewConroller *webView=[[WeiboAuthorizeVIewConroller alloc] initWithNibName:@"WeiboAuthorizeVIewConroller" bundle:nil];
+    webView.redirectUri=redirectURI;
+    webView.hidesBottomBarWhenPushed=YES;
+    webView.hasBackBtn=self.hasBackBtn;
+    //WBAuthorizeWebView *webView = [[WBAuthorizeWebView alloc] init];
+    [webView setDelegate:self];
+    webView.weiboType=weiboType;
+    if (weiboType==TypeTecentWeibo) {
+        webView.title= ALDLocalizedString(@"Weibo authorized", @"腾讯微博授权");
+    }else if (weiboType==TypeWyWeibo) {
+        webView.title=ALDLocalizedString(@"Weibo authorized", @"网易微博授权");
+    }else {
+        webView.title=ALDLocalizedString(@"Weibo authorized", @"新浪微博授权");
+    }
+
+    if (_isMode) {
+        UINavigationController *nav=[[UINavigationController alloc] initWithRootViewController:webView];
+        nav.navigationBar.tintColor=rootViewController.navigationController.navigationBar.tintColor;
+        nav.navigationBar.backgroundColor=rootViewController.navigationController.navigationBar.backgroundColor;
+        [rootViewController presentViewController:nav animated:YES completion:^{
+            
+        }];
+        ALDRelease(nav);
+    }else {
+        UIBarButtonItem *backItem = [[UIBarButtonItem alloc] initWithTitle:ALDLocalizedString(@"back",@"返回") style:UIBarButtonItemStyleBordered target:nil action:nil];
+        [rootViewController.navigationItem setBackBarButtonItem:backItem];//修改的是navigationItem
+        ALDRelease(backItem);
+        [rootViewController.navigationController pushViewController:webView animated:YES];
+    }
+    [webView loadRequestWithURL:[NSURL URLWithString:urlString]];
+    ALDRelease(webView);
+}
+
+- (void)startAuthorizeUsingUserID:(NSString *)userID password:(NSString *)password
+{
+    [self requestAccessTokenWithUserID:userID password:password];
+}
+
+#pragma mark - WBAuthorizeWebViewDelegate Methods
+
+- (void)authorizeWebView:(WBAuthorizeWebView *)webView didReceiveAuthorizeCode:(NSString *)code
+{
+    if (webView) {
+        [webView hide:YES];
+    }
+    // if not canceled
+    if (![code isEqualToString:@"21330"])
+    {
+        [self requestAccessTokenWithAuthorizeCode:code];
+    }else {
+        if ([delegate respondsToSelector:@selector(authorize:didFailWithError:)])
+        {
+            NSError *error = [NSError errorWithDomain:kWBSDKErrorDomain 
+                                                 code:kWBErrorUserCancel 
+                                             userInfo:[NSDictionary dictionaryWithObject:[NSString stringWithFormat:@"%d", kWBSDKErrorCodeAuthorizeError] 
+                                                                                  forKey:kWBSDKErrorCodeKey]];
+            [delegate authorize:self didFailWithError:error];
+        }
+        [self setDelegate:nil];
+    }
+}
+
+- (void)authorizeWebView:(WBAuthorizeWebView *)webView didReceivedWithRequest:(NSURLRequest *)theRequest{
+    NSURL *url=theRequest.URL;
+//    NSLog(@"result url:%@",url);
+    BOOL success = NO;
+    NSDictionary *dict = [self getParams:url];
+    if (webView) {
+        [webView hide:YES];
+    }
+    if (dict) {
+        NSString *token = [dict objectForKey:@"access_token"];
+        NSString *userID = nil;
+        if (weiboType==TypeTecentWeibo) {
+            userID = [dict objectForKey:@"openid"];
+        }else {
+            userID = [dict objectForKey:@"uid"];
+        }
+        NSInteger seconds = [[dict objectForKey:@"expires_in"] intValue];
+        NSString *openKey= [dict objectForKey:@"openkey"];
+        
+        if (weiboType==TypeWyWeibo) {
+            success = token?YES:NO;
+        }else {
+            success = token && userID;
+        }
+        
+        if (success && [delegate respondsToSelector:@selector(authorize:didSucceedWithAccessToken:userID:expiresIn:openKey:)])
+        {
+            [delegate authorize:self didSucceedWithAccessToken:token userID:userID expiresIn:seconds openKey:openKey];
+        }
+    }
+    
+    // should not be possible
+    if (!success && [delegate respondsToSelector:@selector(authorize:didFailWithError:)])
+    {
+        NSError *error = [NSError errorWithDomain:kWBSDKErrorDomain 
+                                             code:kWBErrorCodeSDK 
+                                         userInfo:[NSDictionary dictionaryWithObject:[NSString stringWithFormat:@"%d", kWBSDKErrorCodeAuthorizeError] 
+                                                                              forKey:kWBSDKErrorCodeKey]];
+        [delegate authorize:self didFailWithError:error];
+    }
+    [self setDelegate:nil];
+}
+
+#pragma mark - WBRequestDelegate Methods
+
+- (void)request:(WBRequest *)theRequest didFinishLoadingWithResult:(id)result
+{
+    BOOL success = NO;
+    if ([result isKindOfClass:[NSDictionary class]])
+    {
+        NSDictionary *dict = (NSDictionary *)result;
+        
+        NSString *token = [dict objectForKey:@"access_token"];
+        NSString *userID = nil;
+        if (weiboType==TypeTecentWeibo) {
+            userID = [dict objectForKey:@"openid"];
+        }else {
+            userID = [dict objectForKey:@"uid"];
+        }
+        NSInteger seconds = [[dict objectForKey:@"expires_in"] intValue];
+        NSString *openKey= [dict objectForKey:@"openkey"];
+        
+        success = token && userID;
+        if (success && [delegate respondsToSelector:@selector(authorize:didSucceedWithAccessToken:userID:expiresIn:openKey:)])
+        {
+            [delegate authorize:self didSucceedWithAccessToken:token userID:userID expiresIn:seconds openKey:openKey];
+        }
+    }
+    
+    // should not be possible
+    if (!success && [delegate respondsToSelector:@selector(authorize:didFailWithError:)])
+    {
+        NSError *error = [NSError errorWithDomain:kWBSDKErrorDomain 
+                                             code:kWBErrorCodeSDK 
+                                         userInfo:[NSDictionary dictionaryWithObject:[NSString stringWithFormat:@"%d", kWBSDKErrorCodeAuthorizeError] 
+                                                                              forKey:kWBSDKErrorCodeKey]];
+        [delegate authorize:self didFailWithError:error];
+    }
+    [self setDelegate:nil];
+}
+
+- (void)request:(WBRequest *)theReqest didFailWithError:(NSError *)error
+{
+    if ([delegate respondsToSelector:@selector(authorize:didFailWithError:)])
+    {
+        [delegate authorize:self didFailWithError:error];
+    }
+    [self setDelegate:nil];
+}
+
+@end

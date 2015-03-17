@@ -1,0 +1,63 @@
+//
+//  TipsUtils.h
+//  WeiboApi
+//
+//  Created by yulong chen on 12-7-31.
+//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+@interface TipsUtils : NSObject
+/**
+ * 将之前添加的等待或提示信息移除
+ * @param rootView 之前添加到的根视图
+ **/
++(void)removeWaitingView:(UIView *) rootView;
+
+/**
+ * 添加等待状态信息，如果有提示状态则更改
+ * @param rootView 等待视图添加到的根视图
+ * @param text 提示文字
+ */
++(void) addWaitingView:(UIView *) rootView withText:(NSString *) text;
+
+/**
+ * 添加提示信息，如果有等待状态则更改
+ * @param rootView 等待视图添加到的根视图
+ * @param text 提示文字
+ */
++(void)changeWaitingViewStatus:(UIView *)rootView withText:(NSString *) text;
+
+/**
+ * 显示Toast提示信息，提示信息2秒后消失
+ * @param text 提示文字
+ */
++(void) showToast:(NSString *) text;
+
+/**
+ * 显示Toast提示信息，提示信息2秒后消失
+ * @param text 提示文字
+ * @param interval 提示信息显示时长，单位秒
+ */
++(void) showToast:(NSString *) text withInterval:(float) interval;
+
+/**
+ * 显示Toast提示信息，提示信息2秒后消失
+ * @param rootView 等待视图添加到的根视图
+ * @param text 提示文字
+ */
++(void) showToast:(UIView *)rootView withText:(NSString *) text;
+
+/**
+ * 显示Toast提示信息，提示信息interval秒后消失
+ * @param rootView 等待视图添加到的根视图
+ * @param text 提示文字
+ * @param interval 提示信息显示时长，单位秒
+ */
++(void) showToast:(UIView *)rootView withText:(NSString *) text withInterval:(float) interval;
+
++(void) showAlert:(NSString*) title strForMsg:(NSString*) msg withTag:(NSInteger) tag otherButtonTitles:(NSString*) btnTitle;
+
++(void) showAlert:(NSString*) title strForMsg:(NSString*) msg withTag:(NSInteger) tag withDelegate:(id<UIAlertViewDelegate>)delegate otherButtonTitles:(NSString*) btnTitle;
+@end

@@ -1,0 +1,29 @@
+//
+//  WBWyEngine.h
+//  WeiboApi
+//  网易微博引擎
+//  Created by yulong chen on 12-10-31.
+//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//
+
+#import "WBEngine.h"
+
+@interface WBWyEngine : WBEngine
+/**
+ * 获取用户微博
+ * @param uid	需要查询的用户ID。
+ * @param nick 微博昵称，uid和nick参数必须二选一
+ * @param maxId 可选参数	 该参数需传cursor_id,返回此条索引之后发的微博列表，包含此条
+ * @param sinceId  可选参数,该参数需传cursor_id,返回此条索引之前发的微博列表，不包含此条。
+ * @param pagecount 可选参数	 数量，默认为30条，最大为200条请求示例
+ * @param trimUser 返回值中user信息开关，值为true时返回的user对象只包含id属性，该属性能在一定程度上减少返回的数据量
+ **/
+-(void) readUserTimeline:(NSString *)uid nick:(NSString*)nick maxId:(NSString *)maxId sinceId:(NSString*)sinceId pagecount:(int)pagecount trimUser:(BOOL)trimUser;
+
+/**
+ * 查看用户信息
+ * @param wuid 微博用户id，如果都不传，则返回当前用户信息；
+ * @param screenName 用户昵称
+ */
+-(void) showUser:(NSString *) wuid screenName:(NSString*)nick;
+@end

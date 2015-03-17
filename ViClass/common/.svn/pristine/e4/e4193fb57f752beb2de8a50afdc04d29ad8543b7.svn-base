@@ -1,0 +1,324 @@
+//
+//  WeiboAuthorizeVIewConroller.m
+//  hyt_ios
+//
+//  Created by yulong chen on 12-4-25.
+//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//
+
+#import "WeiboAuthorizeVIewConroller.h"
+#import "NetworkTest.h"
+#import "TipsUtils.h"
+#import "WBUtil.h"
+#import "UIGlossyButton.h"
+#import "UIBarButtonItem+ALDBackBarButtonItem.h"
+
+#define oauth2TokenKey @"access_token="
+#define oauth2CodeKey @"code="
+
+@interface WeiboAuthorizeVIewConroller (private)
+-(BOOL) decodeResUrl:(NSURLRequest *)request;
+-(void) back;
+@end
+
+@implementation WeiboAuthorizeVIewConroller
+@synthesize delegate;
+@synthesize webView=_webView;
+@synthesize weiboType=_weiboType;
+@synthesize redirectUri=_redirectUri;
+@synthesize hasBackBtn=_hasBackBtn;
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        //如果在创建对象的时候调用了self.view相关的操作，则即调用了viewDidLoad
+//        if (!_webView) {
+//            _webView=[[UIWebView alloc] initWithFrame:CGRectMake(0, 0, 320, 480)];
+//            _webView.delegate=self;
+//            _webView.autoresizingMask=UIViewAutoresizingFlexibleHeight;
+//            [self.view addSubview:_webView];
+//        }
+        _viewDidAppear=NO;
+    }
+    return self;
+}
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        //如果在创建对象的时候调用了self.view相关的操作，则即调用了viewDidLoad
+        // Custom initialization
+//        if (!_webView) {
+//            _webView=[[UIWebView alloc] initWithFrame:CGRectMake(0, 0, 320, 480)];
+//            _webView.delegate=self;
+//            _webView.autoresizingMask=UIViewAutoresizingFlexibleHeight;
+//            [self.view addSubview:_webView];
+//        }
+        _viewDidAppear=NO;
+    }
+    return self;
+}
+
+-(void) viewWillAppear:(BOOL)animated{
+    if (self.hidesBottomBarWhenPushed) {
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"hideCustomTabBar" object:nil];
+    }
+    self.navigationController.navigationBarHidden =NO; 
+    [super viewWillAppear:animated];
+}
+
+-(void) viewDidAppear:(BOOL)animated{
+    [super viewDidAppear:animated];
+    _viewDidAppear=YES;
+}
+
+-(void) showTips:(NSString *)text{
+    if (!_textLabel || ![_textLabel isKindOfClass:[UILabel class]]) {
+        _textLabel=[[UILabel alloc] initWithFrame:CGRectMake(10,  80, 300, 40)];
+        _textLabel.highlighted = YES;      
+        _textLabel.textColor=[UIColor blackColor];
+        _textLabel.font=[UIFont boldSystemFontOfSize:14.0];
+        _textLabel.textAlignment  = TEXT_ALIGN_CENTER;
+        //textLabel.adjustsFontSizeToFitWidth =  YES ;         
+        _textLabel.numberOfLines = 0;    
+        _textLabel.backgroundColor=[UIColor clearColor];
+        _textLabel.text=text;
+        [self.view addSubview:_textLabel];
+        //_textLabel.hidden=NO;
+        _webView.hidden=YES;
+    }else {
+        _textLabel.text=text;
+        _textLabel.hidden=NO;
+        _webView.hidden=YES;
+    }
+}
+
+-(void) hiddenTips{
+    if (_textLabel) {
+        _textLabel.hidden=YES;
+    }
+    _webView.hidden=NO;
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    // Do any additional setup after loading the view from its nib.
+    if (!self.title || [self.title isEqualToString:@""]) {
+        self.title=ALDLocalizedString(@"Weibo authorized", @"用户微博授权");
+    }
+    backClicked=NO;
+
+    if (_hasBackBtn!=YES) {
+        if (isIOS7) {
+            UIBarButtonItem *leftBtn=[[UIBarButtonItem alloc] initBackButtonWithTitle:ALDLocalizedString(@"Back", @"返回") color:kNavigationBarTextColor target:self action:@selector(back)];
+            self.navigationItem.leftBarButtonItem=leftBtn;
+            ALDRelease(leftBtn);
+        }else{
+            UIGNavigationButton *backBtn=[[UIGNavigationButton alloc] initWithFrame:CGRectMake(5, 7, 50, 30)];
+            backBtn.leftArrow = YES;
+            [backBtn setTitle:ALDLocalizedString(@"Back", @"返回") forState:UIControlStateNormal];
+            [backBtn setNavigationButtonWithColor:kNavigationBarTextColor];
+            backBtn.strokeType=kUIGlossyButtonStrokeTypeSolid;
+            [backBtn setGradientType:kUIGlossyButtonGradientTypeLinearGlossyStandard];
+            [backBtn addTarget:self action:@selector(back) forControlEvents:UIControlEventTouchUpInside];
+            UIBarButtonItem *leftBtn=[[UIBarButtonItem alloc]initWithCustomView:backBtn];
+            ALDRelease(backBtn);
+            self.navigationItem.leftBarButtonItem=leftBtn;
+            ALDRelease(leftBtn);
+        }
+    }
+    
+    _webView=[[UIWebView alloc] initWithFrame:CGRectMake(0, 0, 320, 480)];
+    _webView.delegate=self;
+    _webView.autoresizingMask=UIViewAutoresizingFlexibleHeight;
+    [self.view addSubview:_webView];
+
+}
+
+- (void)viewDidUnload
+{
+    _textLabel=nil;
+    _webView.delegate=nil;
+    [self setWebView:nil];
+    [super viewDidUnload];
+    // Release any retained subviews of the main view.
+}
+
+- (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
+{
+    return (interfaceOrientation == UIInterfaceOrientationPortrait);
+}
+
+-(void) showWaitingView{
+    [TipsUtils addWaitingView:self.view withText:ALDLocalizedString(@"loadingTips", @"加载中，请稍侯...")];
+}
+
+#pragma mark - WBAuthorizeWebView Public Methods
+
+- (void)loadRequestWithURL:(NSURL *)url
+{
+    
+     //NSLog(@"WBAuthorizeWebView url:%@",url);
+    NSURLRequest *request =[NSURLRequest requestWithURL:url
+                                            cachePolicy:NSURLRequestReloadIgnoringLocalCacheData
+                                        timeoutInterval:60.0];
+    //[_webView setDelegate:self];
+    //[_webView loadRequest:request];
+    [self performSelectorInBackground:@selector(loadRequest:) withObject:request];
+}
+
+-(void) loadRequest:(NSURLRequest*)request{
+//    NSAutoreleasePool *pool=[[NSAutoreleasePool alloc] init];
+    [self performSelectorOnMainThread:@selector(showWaitingView) withObject:nil waitUntilDone:YES];
+    [NSThread sleepForTimeInterval:1];
+    [_webView loadRequest:request];
+//    ALDRelease(pool);
+}
+
+- (void)webViewDidStartLoad:(UIWebView *)aWebView
+{
+	[TipsUtils addWaitingView:self.view withText:ALDLocalizedString(@"loadingTips", @"加载中，请稍侯...")];
+}
+
+- (void)webViewDidFinishLoad:(UIWebView *)aWebView
+{
+	[TipsUtils removeWaitingView:self.view];
+}
+
+- (void)webView:(UIWebView *)aWebView didFailLoadWithError:(NSError *)error
+{
+    //[ALDUtils addWaitingView:self.view withText:@"授权页面加载失败"];
+    [TipsUtils removeWaitingView:self.view];
+    //[ALDUtils showAlert:@"温馨提示" strForMsg:@"绑定微博失败" withTag:111 otherButtonTitles:nil];
+}
+
+- (BOOL)webView:(UIWebView *)WebView shouldStartLoadWithRequest:(NSURLRequest *)request navigationType:(UIWebViewNavigationType)navigationType
+{
+    NSString *absoluteString=request.URL.absoluteString;
+    NSString *scheme=request.URL.scheme;
+    if([scheme isEqualToString:@"tel"]){
+        [[UIApplication sharedApplication] openURL:[NSURL URLWithString:absoluteString]];
+        return NO;
+    }else if([scheme isEqualToString:@"sms"]){
+        [[UIApplication sharedApplication] openURL:[NSURL URLWithString:absoluteString]];
+        return NO;
+    }else if([scheme isEqualToString:@"mailto"]){
+        [[UIApplication sharedApplication] openURL:[NSURL URLWithString:absoluteString]];
+        return NO;
+    }
+    if (![NetworkTest connectedToNetwork]) {
+        [self showTips:ALDLocalizedString(@"netErrorTips", @"你的网络很不给力，请连接后重试!")];
+        return NO;
+    }
+    
+    //NSLog(@"web authonize request url:%@",absoluteString);
+    if (_redirectUri && ![_redirectUri isEqualToString:@""] && ![_redirectUri isEqualToString:@"http://"]) {
+        if ([absoluteString hasPrefix:_redirectUri]) {
+            [self decodeResUrl:request];
+            return NO;
+        }
+    }else {
+        return [self decodeResUrl:request];
+    }
+    
+    return YES;
+}
+
+-(BOOL) decodeResUrl:(NSURLRequest *)request{
+    NSString *absoluteString=request.URL.absoluteString;
+//    NSLog(@"absoluteString:%@",absoluteString);
+    NSRange range = [absoluteString rangeOfString:oauth2TokenKey];
+    if (range.location != NSNotFound){
+        if ([delegate respondsToSelector:@selector(authorizeWebView:didReceivedWithRequest:)])
+        {
+            [delegate authorizeWebView:nil didReceivedWithRequest:request];
+        }
+        isSuccessed=YES;
+        [self hide:YES];
+        return NO;
+    }else{
+        range = [absoluteString rangeOfString:oauth2CodeKey];
+        if (range.location != NSNotFound)
+        {
+            int startIdx=range.location + range.length;
+            NSString *code=nil;
+            if (startIdx>=(absoluteString.length)) {
+                code = @"0";
+            }else {
+                //code = [absoluteString substringFromIndex:startIdx];
+                code=[NSString getStringFromUrl:absoluteString needle:oauth2CodeKey];
+                if (!code) {
+                    code=@"0";
+                }
+            }
+            NSString *type = [NSString getStringFromUrl:absoluteString needle:@"checkType="];
+            if ([code isEqualToString:@"101"] && [type isEqualToString:@"error"]) {
+                code=@"21330"; //用户拒绝授权
+            }
+            if ([delegate respondsToSelector:@selector(authorizeWebView:didReceiveAuthorizeCode:)])
+            {
+                [delegate authorizeWebView:nil didReceiveAuthorizeCode:code];
+            }
+            isSuccessed=YES;
+            [self hide:YES];
+            return NO;
+        }
+    }
+    return YES;
+}
+
+-(void) back{
+    if (!_viewDidAppear) {
+        return;
+    }
+    @synchronized(self){ //防止点击过快而crash了
+        if (backClicked) {
+            return;
+        }
+        backClicked=YES;
+    }
+    if ([delegate respondsToSelector:@selector(authorizeWebView:didReceiveAuthorizeCode:)])
+    {
+        [delegate authorizeWebView:nil didReceiveAuthorizeCode:@"21330"];
+    }
+    [self hide:YES];
+}
+
+-(void) viewWillDisappear:(BOOL)animated{
+    if (backClicked && !isSuccessed) {
+        if ([delegate respondsToSelector:@selector(authorizeWebView:didReceiveAuthorizeCode:)])
+        {
+            [delegate authorizeWebView:nil didReceiveAuthorizeCode:@"21330"];
+        }
+    }
+}
+
+- (void)hide:(BOOL)animated{
+    [TipsUtils removeWaitingView:self.view];
+    if (self.hidesBottomBarWhenPushed) {
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"bringCustomTabBarToFront" object:nil];
+    }
+    [self.navigationController popViewControllerAnimated:YES];
+}
+
+
+
+- (void)dealloc
+{
+    //NSLog(@"WeiboAuthorizeViewController dealloc");
+    ALDRelease(_redirectUri);
+    ALDRelease(_textLabel);
+    self.delegate=nil;
+    [_webView stopLoading];
+    _webView.delegate=nil;
+    ALDRelease(_webView);
+    _webView = nil;
+#if ! __has_feature(objc_arc)
+    [super dealloc];
+#endif
+}
+
+@end

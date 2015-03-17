@@ -1,0 +1,112 @@
+//
+//  QrEncodeUtils.m
+//  HezuoHz
+//
+//  Created by chen yulong on 13-4-23.
+//
+//
+
+#import "QrEncodeUtils.h"
+#import "QREncoder.h"
+#import "DataMatrix.h"
+
+@implementation QrEncodeUtils
+/**
+ * 生成黑色二维码，并返回二维码存储路径
+ * @param codeText 要用于生成二维码的文本
+ * @return 返回生成二维码后的存储路径
+ */
++(NSString *) encodeWithTextResPath:(NSString *) codeText{
+//    NSString *imgPath=[NSTemporaryDirectory() stringByAppendingPathComponent:@"temp_qrcode.png"];
+	return [self encodeWithTextResPath:codeText path:NSTemporaryDirectory() filename:@"temp_qrcode.png" imageDimension:250 color:0xFF000000];
+}
+
+/**
+ * 生成黑色二维码，并返回二维码图片对象
+ * @param codeText 要用于生成二维码的文本
+ * @return 返回生成二维码后的图片对象
+ */
++(UIImage *) encodeWithTextResImage:(NSString *) codeText{
+//    NSString *imgPath=[NSTemporaryDirectory() stringByAppendingPathComponent:@"temp_qrcode.png"];
+	return [self encodeWithTextResImage:codeText path:NSTemporaryDirectory() filename:@"temp_qrcode.png" imageDimension:250 color:0xFF000000];
+}
+
+/**
+ * 生成二维码，并返回二维码存储路径
+ * @param codeText 要用于生成二维码的文本
+ * @param path 保存二维码的路径
+ * @param filename 待保存的文件路径及文件名
+ * @param imageDimension 生成的二维码图片尺寸，单位像素
+ * @param color 要生成的二维码的颜色，颜色值设置如：0xCC2E33FF
+ * @return 返回生成二维码后的存储路径
+ */
++(NSString *) encodeWithTextResPath:(NSString *) codeText path:(NSString *)path filename:(NSString *)filename imageDimension:(int)imageDimension color:(uint32_t)color{
+    if (!path) {
+        path=NSTemporaryDirectory();
+    }
+    NSFileManager *fileManager = [[NSFileManager alloc] init];
+    BOOL isDirectory=YES;
+    if (![fileManager fileExistsAtPath:path isDirectory:&isDirectory]) {
+        NSLog(@"path:%@ not exists",path);
+        NSError *error=nil;
+        if (![fileManager createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:&error]) {
+            NSLog(@"cretae path:%@ with error:%@",path,error);
+            [fileManager release];
+            return nil;
+        }
+    }
+    [fileManager release];
+    NSString *imgPath=[path stringByAppendingPathComponent:filename];
+    
+    DataMatrix* qrMatrix = [QREncoder encodeWithECLevel:QR_ECLEVEL_AUTO version:QR_VERSION_AUTO string:codeText];
+    //then render the matrix
+    UIImage *qrcodeImage = [QREncoder renderDataMatrix:qrMatrix imageDimension:imageDimension withColor:color];
+    if (qrcodeImage) {
+        NSData* imageData = UIImagePNGRepresentation(qrcodeImage);
+        if (imageData) {
+            [imageData writeToFile:imgPath atomically:YES];
+        }
+    }
+    return imgPath;
+}
+
+/**
+ * 生成二维码，并返回二维码图片对象
+ * @param codeText 要用于生成二维码的文本
+ * @param path 保存二维码的路径
+ * @param filename 待保存的文件路径及文件名
+ * @param imageDimension 生成的二维码图片尺寸，单位像素
+ * @param color 要生成的二维码的颜色，颜色值设置如：0xCC2E33FF
+ * @return 返回生成二维码后的图片对象
+ */
++(UIImage *) encodeWithTextResImage:(NSString *) codeText path:(NSString *)path filename:(NSString *)filename imageDimension:(int)imageDimension color:(uint32_t)color{
+    if (!path) {
+        path=NSTemporaryDirectory();
+    }
+    NSFileManager *fileManager = [[NSFileManager alloc] init];
+    BOOL isDirectory=YES;
+    if (![fileManager fileExistsAtPath:path isDirectory:&isDirectory]) {
+        NSLog(@"path:%@ not exists",path);
+        NSError *error=nil;
+        if (![fileManager createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:&error]) {
+            NSLog(@"cretae path:%@ with error:%@",path,error);
+            [fileManager release];
+            return nil;
+        }
+    }
+    [fileManager release];
+    NSString *imgPath=[path stringByAppendingPathComponent:filename];
+    
+    DataMatrix* qrMatrix = [QREncoder encodeWithECLevel:QR_ECLEVEL_AUTO version:QR_VERSION_AUTO string:codeText];
+    //then render the matrix
+    UIImage *qrcodeImage = [QREncoder renderDataMatrix:qrMatrix imageDimension:imageDimension withColor:color];
+    if (qrcodeImage) {
+        NSData* imageData = UIImagePNGRepresentation(qrcodeImage);
+        if (imageData) {
+            [imageData writeToFile:imgPath atomically:YES];
+        }
+    }
+    return qrcodeImage;
+}
+
+@end

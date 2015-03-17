@@ -1,0 +1,304 @@
+//
+//  PhoneLoginViewController.m
+//  OpenApi
+//
+//  Created by yulong chen on 13-1-21.
+//  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+//
+
+#import "PhoneLoginViewController.h"
+#import "ALDUtils.h"
+
+@interface PhoneLoginViewController ()
+
+@end
+
+@implementation PhoneLoginViewController
+@synthesize phoheText=_phoheText;
+@synthesize delegate=_delegate;
+@synthesize isMode=_isMode;
+@synthesize appSn=_appSn;
+@synthesize serverUrl=_serverUrl;
+
+-(void)dealloc{
+    [_appSn release];
+    [_serverUrl release];
+    [_phoheText release];
+    [super dealloc];
+}
+
+-(void) viewWillAppear:(BOOL)animated{
+    self.navigationController.navigationBarHidden =NO; 
+}
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        // Custom initialization
+    }
+    return self;
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    
+    CGFloat startY=0;
+    
+    if (!self.navigationController) {
+        _navBar=[self createTitleBar];
+        [self.view addSubview:_navBar];
+        startY=_navBar.frame.size.height;
+    }else {
+        if (_isMode) {
+            UIBarButtonItem *rightBtn=[[UIBarButtonItem alloc]initWithTitle:@"取消" style:UIBarButtonItemStyleBordered target:self action:@selector(rightClicked)];
+            self.navigationItem.rightBarButtonItem=rightBtn;
+            [rightBtn release];
+        }
+    }
+    
+    startY+=20;
+    UILabel *label=[[UILabel alloc] initWithFrame:CGRectMake(0, startY, 320, 20)];
+    label.text=@"请输入你的手机号,并进行验证!";
+    label.font=[UIFont boldSystemFontOfSize:13.0];
+    label.textAlignment=TEXT_ALIGN_LEFT;
+    label.lineBreakMode = LineBreakModeWordWrap;
+    label.textColor=[UIColor orangeColor];
+    label.numberOfLines=1;
+    label.enabled=YES;
+    label.backgroundColor=[UIColor clearColor];
+    [self.view addSubview:label];
+    [label release];
+    startY+=30;
+    self.phoheText=[self createTextField:@"输入手机号" tag:101 frame:CGRectMake(30, startY, 260, 40)];
+    _phoheText.keyboardType=UIKeyboardTypePhonePad;
+    [self.view addSubview:_phoheText];
+    startY+=50;
+    UIButton *logBt=[self createButton:CGRectMake(190, startY, 80, 30)];
+    [logBt setBackgroundImage:[UIImage imageNamed:@"login.png"] forState:UIControlStateNormal];
+    [logBt setTitle:@"登 录" forState:UIControlStateNormal];
+    [self.view addSubview:logBt];
+}
+
+
+-(UINavigationBar *) createTitleBar{
+    NSString *title=self.title;
+    UINavigationBar *navBar=[[UINavigationBar alloc] initWithFrame:CGRectMake(0, 0, self.view.bounds.size.width, 44)];
+    navBar.barStyle=UIBarStyleBlackTranslucent;
+    UINavigationItem *navItem=[[UINavigationItem alloc] initWithTitle:title];
+    UIBarButtonItem *rightBtn=[[UIBarButtonItem alloc]initWithTitle:@"取消" style:UIBarButtonItemStyleBordered target:self action:@selector(rightClicked)];
+    navItem.rightBarButtonItem=rightBtn;
+    [rightBtn release];
+    [navBar pushNavigationItem:navItem animated:YES];
+    [navItem release];
+    return [navBar autorelease];
+}
+
+-(void) setTitle:(NSString *)title{
+    if (_navBar) {
+        _navBar.topItem.title=title;
+    }else {
+        [super setTitle:title];
+    }
+}
+
+-(NSString*) title{
+    if (_navBar) {
+        return _navBar.topItem.title;
+    }else {
+        return [super title];
+    }
+}
+
+-(void) rightClicked{
+    if ([_delegate respondsToSelector:@selector(openApiLoginFailed:)])
+    {
+        NSError *error=[NSError errorWithDomain:@"user canceled" code:21330 userInfo:nil];
+        [_delegate openApiLoginFailed:error];
+    }
+    [ALDUtils removeWaitingView:self.view];
+    if (_isMode) {
+        [self dismissViewControllerAnimated:YES completion:nil];
+    }else {
+        [self.navigationController popViewControllerAnimated:YES];
+    }
+}
+
+
+-(void)btnPressed:(id)sender{
+    NSString *phone=_phoheText.text;
+    if (!phone || [phone isEqualToString:@""]) {
+        [ALDUtils showToast:@"手机号不能为空"];
+        [self requestFocus:_phoheText];
+        return;
+    }
+    [self hiddenKeybord];
+    
+    OpenApiHttpClient *http=[OpenApiHttpClient httpClientWithDelegate:self];
+    http.needTipsNetError=YES;
+    http.serverUrl=_serverUrl;
+    NSString *appid=[[NSUserDefaults standardUserDefaults] objectForKey:kAppidKey];
+    if (!appid || [appid isEqualToString:@""]) {
+        [http registAppId:_appSn];
+    }else {
+        [http verifyPhone:appid appSn:_appSn phone:phone];
+    }
+    
+}
+
+
+-(UITextField *) createTextField:(NSString*)placeholder tag:(int)tag frame:(CGRect) frame{
+    UITextField *textfield = [[UITextField alloc] initWithFrame:frame]; 
+    [textfield setBorderStyle:UITextBorderStyleNone]; //外框类型 
+    textfield.placeholder = placeholder; //默认显示的字 
+    textfield.textAlignment=TEXT_ALIGN_LEFT;
+    textfield.autocorrectionType = UITextAutocorrectionTypeNo; 
+    textfield.borderStyle=UITextBorderStyleRoundedRect;
+    textfield.autocapitalizationType = UITextAutocapitalizationTypeNone; 
+    textfield.contentVerticalAlignment=UIControlContentVerticalAlignmentCenter;
+    textfield.returnKeyType = UIReturnKeyDone; 
+    textfield.font=[UIFont boldSystemFontOfSize:16.0];
+    textfield.keyboardType=UIKeyboardTypeDefault;
+    textfield.clearButtonMode = UITextFieldViewModeWhileEditing; //编辑时会出现个修改X
+    textfield.delegate = self;
+    textfield.tag=tag;
+    textfield.backgroundColor=[UIColor clearColor];
+    return [textfield autorelease];
+}
+-(UIButton *) createButton:(CGRect) frame{
+    UIButton *button=[UIButton buttonWithType:UIButtonTypeCustom];
+    button.frame=frame;
+    button.titleLabel.font=[UIFont boldSystemFontOfSize:14.0];
+    [button addTarget:self action:@selector(btnPressed:) forControlEvents:UIControlEventTouchUpInside];
+    [button setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+//    [button.layer setBorderColor: [[UIColor whiteColor] CGColor]];
+//    [button.layer setBorderWidth:0];
+//    button.layer.cornerRadius =0;
+    [button setBackgroundColor:[UIColor clearColor]];
+    
+    return button;
+}
+
+-(void) hiddenKeybord{
+    [_phoheText resignFirstResponder];
+}
+
+
+-(void) requestFocus:(UITextField *) textField{
+    [self textFieldShouldReturn:textField];
+    [textField becomeFirstResponder];
+}
+
+- (BOOL)textFieldShouldReturn:(UITextField *)textField   
+{      
+    // When the user presses return, take focus away from the text field so that the keyboard is dismissed.          
+    NSTimeInterval animationDuration = 0.30f;          
+    [UIView beginAnimations:@"ResizeForKeyboard" context:nil];          
+    [UIView setAnimationDuration:animationDuration];          
+    CGRect rect = CGRectMake(0.0f, 20.0f, self.view.frame.size.width, self.view.frame.size.height);          
+    self.view.frame = rect;          
+    [UIView commitAnimations];          
+    [textField resignFirstResponder];  
+    return YES;          
+}  
+
+
+- (void)textFieldDidBeginEditing:(UITextField *)textField  
+{   
+    CGRect frame = textField.frame;  
+    int offset = frame.origin.y + 92 - (self.view.frame.size.height - 216.0);//键盘高度216  
+    NSTimeInterval animationDuration = 0.30f;                  
+    [UIView beginAnimations:@"ResizeForKeyBoard" context:nil];                  
+    [UIView setAnimationDuration:animationDuration];  
+    float width = self.view.frame.size.width;                  
+    float height = self.view.frame.size.height;          
+    if(offset > 0)  
+    {  
+        CGRect rect = CGRectMake(0.0f, -offset,width,height);                  
+        self.view.frame = rect;          
+    }          
+    [UIView commitAnimations];                  
+}
+
+- (void)viewDidUnload
+{
+    self.phoheText=nil;
+    [super viewDidUnload];
+    // Release any retained subviews of the main view.
+    // e.g. self.myOutlet = nil;
+}
+
+- (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
+{
+    return (interfaceOrientation == UIInterfaceOrientationPortrait);
+}
+
+-(void) aldDataStartLoad:(ALDHttpRequestPath)requestPath{
+    if (requestPath==ALDHttpRequestPathForLogin) {
+        [ALDUtils addWaitingView:self.view withText:@"验证中，请稍候..."];
+    }else {
+        [ALDUtils addWaitingView:self.view withText:@"登录中，请稍候..."];
+    }
+}
+
+-(void) aldDataLoadDone:(ALDHttpRequestPath)requestPath withCode:(int)code withObj:(id)object{
+    if (requestPath==ALDHttpRequestPathForAppid) {
+        if (code==KOK) {
+            OpenApiHttpClient *http=[OpenApiHttpClient httpClientWithDelegate:self];
+            http.needTipsNetError=YES;
+            http.serverUrl=self.serverUrl;
+            [http verifyPhone:object appSn:_appSn phone:_phoheText.text];
+        }else if (code==kNET_ERROR|| code==kNET_TIMEOUT) {
+            [ALDUtils removeWaitingView:self.view];
+            [ALDUtils showToast:@"登录失败，网络异常!"];
+        }else {
+            [ALDUtils removeWaitingView:self.view];
+            [ALDUtils showToast:@"抱歉，登录失败!"];
+        }
+    }else if (requestPath==ALDHttpRequestPathForVerifyPhone) {
+        [ALDUtils removeWaitingView:self.view];
+        if (code==KOK) {
+            CodeVerifyView *verifyAlert = [[CodeVerifyView alloc] initWithAlertTitle:@"手机号验证" withVerifyDelegate:self];
+            [verifyAlert show];
+            [verifyAlert release];
+        }else if (code==kNET_ERROR|| code==kNET_TIMEOUT) {
+            [ALDUtils showToast:@"登录失败，网络异常!"];
+        }else {
+            [ALDUtils showToast:@"抱歉，登录失败!"];
+        }
+    } else if (requestPath==ALDHttpRequestPathForLogin) {
+        [ALDUtils removeWaitingView:self.view];
+        if (code==KOK) {
+            OpenApiUserBean *user=[[OpenApiUserBean alloc] init];
+            user.userId=object;
+            user.screenName=_phoheText.text;
+            if (_delegate && [_delegate respondsToSelector:@selector(openApiLoginSuccessed:)]) {
+                [_delegate openApiLoginSuccessed:user];
+            }
+            [user release];
+            if (_isMode) {
+                [self dismissViewControllerAnimated:YES completion:nil];
+            }else {
+                [self.navigationController popViewControllerAnimated:YES];
+            }
+        }else if (code==kNET_ERROR|| code==kNET_TIMEOUT) {
+            [ALDUtils showToast:@"登录失败，网络异常!"];
+        }else {
+            [ALDUtils showToast:@"抱歉，登录失败!"];
+        }
+    }
+}
+
+-(void) verifyViewDidSelectedOnCancel:(CodeVerifyView *)view{
+    [ALDUtils showToast:@"你取消了输入验证码！"];
+}
+
+-(void) verifyViewDidSelectedOnOk:(CodeVerifyView *)view withCode:(NSString *)code{
+    OpenApiHttpClient *http=[OpenApiHttpClient httpClientWithDelegate:self];
+    http.needTipsNetError=YES;
+    http.serverUrl=_serverUrl;
+    NSString *appid=[[NSUserDefaults standardUserDefaults] objectForKey:kAppidKey];
+    [http loginWithAppid:appid appSn:_appSn userName:_phoheText.text pwd:code];
+}
+@end

@@ -1,0 +1,17 @@
+#import "NearlyBean.h"
+#import "FMResultSet.h"
+#import "ALDUtils.h"
+
+@implementation NearlyBean
+@synthesize uid=_uid,userNickName=_userNickName;
+@synthesize avatar=_avatar;
+
+- (void)dealloc
+{
+    [_uid release];
+    [_userNickName release];
+    [_avatar release];
+    [super dealloc];
+}
+
+@end

@@ -1,0 +1,511 @@
+//
+//  MianViewController.m
+//  WeTalk
+//
+//  主页
+//
+//  Created by x-Alidao on 14/11/29.
+//  Copyright (c) 2014年 skk. All rights reserved.
+//
+
+#import "MainViewController.h"
+#import "ALDImageView.h"
+#import "ALDButton.h"
+#import "UIViewExt.h"
+#import "AppDelegate.h"
+#import "ShowListCell.h"
+#import "DetailsViewController.h"
+#import "TalkListViewController.h"
+
+#define TAG_LABLE_TITLE    0x001
+#define TAG_LABLE_TIME     0x002
+#define TAG_LABLE_CONTENT  0x003
+#define TAG_LABLE_LOCATION 0x004
+#define TAG_IMAGE_LOGO     0x005
+#define TAG_IMAGE_LOCATION 0x006
+#define TAG_IMAGE_TIME     0x007
+#define TAG_LABLE_STATUS   0x008
+#define TAG_IMAGE_STATUS   0x009
+#define TAG_LABLE_ENDTIME  0x0010
+
+#define kTableColumns      2
+#define kTableRowHeight    132
+
+@interface MainViewController ()<UIAlertViewDelegate>
+{
+    BOOL _needRefrash,_isShowing;
+    int selectType;
+    
+    BOOL _isShow;
+}
+@property (retain,nonatomic) NSNumber       *currConfid;
+@property (retain,nonatomic) NSMutableArray *overseasList;
+
+@end
+
+@implementation MainViewController
+@synthesize currConfid     = _currConfid;
+@synthesize pullTableView  = _pullTableView;
+@synthesize bRefreshing    = _bRefreshing;
+@synthesize parentController = _parentController;
+
+- (void)dealloc
+{
+    self.currConfid                    = nil;
+    self.pullTableView.dataSource      = nil;
+    self.pullTableView.delegate        = nil;
+    self.pullTableView.pullingDelegate = nil;
+    self.pullTableView                 = nil;
+    self.tableData                     = nil;
+    self.parentController              = nil;
+    
+#if ! __has_feature(objc_arc)
+    [super dealloc];
+#endif
+}
+
+- (void)viewWillAppear:(BOOL)animated
+{
+    self.navigationController.navigationBarHidden = NO;
+    [super viewWillAppear:animated];
+}
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        self.navigationItem.hidesBackButton = YES;
+        _isShow=NO;
+    }
+    return self;
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+//    self.navigationController.navigationBar.translucent = NO;
+    [self initParams];
+    [self initUI];
+//    [self loadData];
+        [self TestData];
+}
+
+-(void) launchRefreshing{
+    if ([self isViewLoaded]) {
+        [self.pullTableView launchRefreshing];
+    }
+}
+
+-(void) setViewShowing:(BOOL) isShow{
+    if (!_isShow) {
+        [self performSelectorInBackground:@selector(initData) withObject:nil];
+    }
+    _isShow=isShow;
+}
+
+-(void) initData{
+//    _iPage=1;
+//    _iPageSize=20;
+//    HttpClient *httpClient=[HttpClient httpClientWithDelegate:self];
+//    httpClient.needTipsNetError=YES;
+//    [httpClient queryConferenceList:self.typeId page:_iPage pageCount:_iPageSize];
+    [self TestData];
+}
+
+-(void)TestData{
+//    ConferenceBean *bean=[[ConferenceBean alloc] init];
+//    if([self.typeId intValue]==1){
+//        bean.sid=[NSNumber numberWithLong:1];
+//        bean.groupnbr=@"11111";
+//        bean.custcode=@"1";
+//        bean.groupname=@"groupName1";
+//        bean.guestnbr=[NSNumber numberWithInt:50];
+//        bean.country=@"中国";
+//        bean.city=@"杭州市";
+//        bean.startdate=@"2013-09-12 12:20:22";
+//        bean.enddate=@"2013-09-20 12:20:22";
+//        bean.badgeCount=[NSNumber numberWithInt:2];
+//    }else if([self.typeId intValue]==2){
+//        bean.sid=[NSNumber numberWithLong:2];
+//        bean.groupnbr=@"22222";
+//        bean.custcode=@"2";
+//        bean.groupname=@"groupName2";
+//        bean.guestnbr=[NSNumber numberWithInt:50];
+//        bean.country=@"中国";
+//        bean.city=@"杭州市";
+//        bean.startdate=@"2013-09-12 12:20:22";
+//        bean.enddate=@"2013-09-20 12:20:22";
+//        bean.badgeCount=[NSNumber numberWithInt:0];
+//    }else if([self.typeId intValue]==3){
+//        bean.sid=[NSNumber numberWithLong:3];
+//        bean.groupnbr=@"33333";
+//        bean.custcode=@"3";
+//        bean.groupname=@"groupName3";
+//        bean.guestnbr=[NSNumber numberWithInt:50];
+//        bean.country=@"中国";
+//        bean.city=@"杭州市";
+//        bean.startdate=@"2013-09-12 12:20:22";
+//        bean.enddate=@"2013-09-20 12:20:22";
+//        bean.badgeCount=[NSNumber numberWithInt:0];
+//    }else{
+//        bean.sid=[NSNumber numberWithLong:4];
+//        bean.groupnbr=@"44444";
+//        bean.custcode=@"4";
+//        bean.groupname=@"groupName4";
+//        bean.guestnbr=[NSNumber numberWithInt:50];
+//        bean.country=@"中国";
+//        bean.city=@"杭州市";
+//        bean.startdate=@"2013-09-12 12:20:22";
+//        bean.enddate=@"2013-09-20 12:20:22";
+//        bean.badgeCount=[NSNumber numberWithInt:1];
+//    }
+//    self.tableData=[NSMutableArray arrayWithObjects:bean, nil];
+    [self.pullTableView reloadData];
+}
+
+//==============
+// 初始化参数
+//==============
+- (void)initParams
+{
+    _iPage            = 1;
+    _iPageSize        = 20;
+    _bDataListHasNext = NO;
+    selectType=self.type;
+}
+
+//==============
+// 初始化界面
+//==============
+- (void)initUI
+{
+    //-------------------
+    // 列表
+    //-------------------
+    CGRect frame                    = self.view.frame;
+    CGFloat viewHeight              = CGRectGetHeight(frame);
+    if (viewHeight == 736) {
+        frame.size.height              -= 220/3.f - 24 - 2;
+    }else {
+        frame.size.height              -= 70 - 21 - 2;
+    }
+    
+    _pullTableView                  = [[PullingRefreshTableView alloc] initWithFrame:frame pullingDelegate:self];
+    _pullTableView.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
+    _pullTableView.dataSource       = self;
+    _pullTableView.delegate         = self;
+    _pullTableView.pullingDelegate  = self;
+    _pullTableView.separatorStyle   = UITableViewCellSeparatorStyleNone;
+    _pullTableView.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
+    [self.view addSubview:_pullTableView];
+}
+
+-(void)loadData{
+//    HttpClient *httpClient=[HttpClient httpClientWithDelegate:self];
+//    httpClient.needTipsNetError=YES;
+//    [httpClient queryConferenceList:self.typeId page:_iPage pageCount:_iPageSize];
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    NSInteger count = self.tableData.count;
+    if (count>0) {
+        return count/kTableColumns+1;
+    }
+    return 5;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    static NSString *strCellID = @"CellID";
+    UITableViewCell *cell      = nil;
+    
+    CGRect frame                    = self.view.frame;
+    CGFloat viewWidth              = CGRectGetWidth(frame);
+    NSInteger tagOffSet = 100;
+    
+    if (indexPath.row == 0) {
+        cell = [tableView dequeueReusableCellWithIdentifier:@"cellIDFirst"];
+        if(cell == nil){
+            cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"cellIDFirst"];
+            cell.selectionStyle=UITableViewCellSelectionStyleNone;
+            
+            ShowListCell *showCell = [[ShowListCell alloc] initWithFrame:CGRectMake(0, 0, viewWidth, 150)];
+            showCell.tag = tagOffSet;
+            [showCell addTarget:self action:@selector(clickCell:) forControlEvents:UIControlEventTouchUpInside];
+            [cell addSubview:showCell];
+            
+            //冠军标志
+            if ([self.typeId integerValue] != 2) {
+                ALDImageView *championPic = [[ALDImageView alloc] initWithFrame:CGRectMake(viewWidth - 80 - 10, 10.0f, 80, 145/2.f)];
+                championPic.image = [UIImage imageNamed:@"champion"];
+                if (viewWidth == 414) {
+                    championPic.frame = CGRectMake(viewWidth - 242/3.f - 10, 10.0f, 242/3.f, 220/3.f);
+                    championPic.image = [UIImage imageNamed:@"champion@3x"];
+                }
+                championPic.backgroundColor = [UIColor clearColor];
+                [cell addSubview:championPic];
+            }
+        }
+    }else {
+        cell = [tableView dequeueReusableCellWithIdentifier:strCellID];
+        if(cell == nil){
+            cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:strCellID];
+            cell.selectionStyle = UITableViewCellSelectionStyleNone;
+            
+            CGFloat x = 0;
+            CGFloat space = 2;
+            CGFloat width = (viewWidth - space)/2.f;
+            
+            for (int i=0; i<kTableColumns; i++) {
+                ShowListCell *showCell = [[ShowListCell alloc] initWithFrame:CGRectMake(x, 0, width, kTableRowHeight - 2)];
+                showCell.tag = tagOffSet+i+1;
+                [showCell addTarget:self action:@selector(clickCell:) forControlEvents:UIControlEventTouchUpInside];
+                [cell addSubview:showCell];
+                x += width+space;
+            }
+        }
+    }
+    
+    return cell;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    CGFloat cellHeight = kTableRowHeight;
+    if (indexPath.row == 0) {
+        cellHeight = 152.0f;
+    }
+    
+    return cellHeight;
+}
+
+-(void)clickCell:(id)sender
+{
+    DetailsViewController *talkDetails = [[DetailsViewController alloc] init];
+    talkDetails.title = @"微说";
+    
+    TalkListViewController *masterController = [[TalkListViewController alloc] init];
+    masterController.title = @"达人";
+    masterController.toController = 1;
+    
+    if ([self.typeId integerValue] == 3) {
+        if (_parentController) {
+            [_parentController.navigationController pushViewController:masterController animated:YES];
+        }else{
+            [self.navigationController pushViewController:masterController animated:YES];
+        }
+    }else {
+        if (_parentController) {
+            [_parentController.navigationController pushViewController:talkDetails animated:YES];
+        }else{
+            [self.navigationController pushViewController:talkDetails animated:YES];
+        }
+    }
+}
+
+-(UILabel *)createLabel:(CGRect )frame textColor:(UIColor *)textColor textFont:(UIFont *)textFont
+{
+    UILabel *label=[[UILabel alloc] initWithFrame:frame];
+    label.textColor=textColor;
+    label.font=textFont;
+    label.backgroundColor=[UIColor clearColor];
+    
+    return label;
+}
+
+-(UIView *)createLine:(CGRect)frame
+{
+    UIView *line=[[UIView alloc] initWithFrame:frame];
+    line.backgroundColor=kLineColor;
+    
+    return line;
+}
+
+#pragma mark - Scroll Action
+- (void)scrollViewDidScroll:(UIScrollView *)scrollView
+{
+    [self.pullTableView tableViewDidScroll:scrollView];
+}
+
+- (void)scrollViewDidEndDragging:(UIScrollView *)scrollView willDecelerate:(BOOL)decelerate
+{
+    [self.pullTableView tableViewDidEndDragging:scrollView];
+}
+
+#pragma mark - PullingRefreshTableViewDelegate
+- (void)pullingTableViewDidStartRefreshing:(PullingRefreshTableView *)tableView
+{
+    self.bRefreshing = YES;
+    [self performSelector:@selector(scrollLoadData) withObject:[NSNumber numberWithInt:1] afterDelay:1.f];
+}
+
+- (void)pullingTableViewDidStartLoading:(PullingRefreshTableView *)tableView
+{
+    [self performSelector:@selector(scrollLoadData) withObject:[NSNumber numberWithInt:1] afterDelay:1.f];
+}
+
+
+- (void)scrollLoadData
+{
+    if (self.bRefreshing == YES)
+    {
+        _iPage=1;
+    }
+    else
+    {
+        _iPage++;
+    }
+    [self loadData];
+}
+
+- (void)refrashClick
+{
+    _bDataListHasNext = NO;
+    self.pullTableView.reachedTheEnd  = NO;
+    self.bRefreshing = NO;
+    _iPage = 1;
+}
+
+- (void)getMore
+{
+    if (!_bDataListHasNext)
+    {
+        [self.pullTableView tableViewDidFinishedLoading];
+        self.pullTableView.reachedTheEnd = YES;
+        return;
+    }
+    _iPage++;
+}
+
+- (void)btnPressed:(id)sender
+{
+    
+}
+
+-(void) showTips:(NSString *) text{
+    _pullTableView.separatorStyle=UITableViewCellSeparatorStyleNone;
+    [ALDUtils showTips:self.view text:text];
+}
+
+-(void) delListData:(NSMutableArray*) data confid:(NSNumber*) confid{
+//    if (!data || data.count<1 || !confid) {
+//        return;
+//    }
+//    ConferenceBean *currBean=nil;
+//    for (ConferenceBean *bean in data) {
+//        if ([bean.sid isEqualToNumber:confid]) {
+//            currBean=bean;
+//            break;
+//        }
+//    }
+//    if (currBean!=nil) {
+//        [data removeObject:currBean];
+//        [data insertObject:currBean atIndex:0];
+//    }
+}
+
+-(void)dataStartLoad:(ALDHttpClient *)httpClient requestPath:(HttpRequestPath)requestPath{
+//    if(requestPath==HttpRequestPathForConferenceList){
+//        [ALDUtils addWaitingView:self.view withText:@"加载中,请稍候..."];
+//    }
+}
+
+-(void)dataLoadDone:(ALDHttpClient *)httpClient requestPath:(HttpRequestPath)requestPath withCode:(NSInteger)code withObj:(ALDResult *)result{
+//    if(requestPath==HttpRequestPathForConferenceList){
+//        if(code==KOK){
+//            id obj=result.obj;
+//            if([obj isKindOfClass:[NSArray class]]){
+//                NSArray *array=(NSArray *)obj;
+//                if(_iPage==1){
+//                    _tableData=[NSMutableArray arrayWithArray:array];
+//                }else{
+//                    [_tableData addObjectsFromArray:array];
+//                }
+//                
+//                _bDataListHasNext = result.hasNext;
+//                if (!_bDataListHasNext){
+//                    [_pullTableView tableViewDidFinishedLoadingWithMessage:@"没有啦，加载完了！"];
+//                    _pullTableView.reachedTheEnd = YES;
+//                }else{
+//                    [_pullTableView tableViewDidFinishedLoading];
+//                    _pullTableView.reachedTheEnd = NO;
+//                }
+//                [_pullTableView reloadData];
+//            }
+//            [ALDUtils hiddenTips:self.view];
+//        }else if(code==kNO_RESULT){
+//            _bDataListHasNext = NO;
+//            if(_iPage==1){
+//                self.tableData=nil;
+//                [self.pullTableView reloadData];
+//            }
+//            if (!_tableData || _tableData.count < 1){
+//                [_pullTableView tableViewDidFinishedLoading];
+//                _pullTableView.reachedTheEnd = NO;
+//                [self showTips:[NSString stringWithFormat:@"%@ 下拉刷新！",@"抱歉，暂无会务数据!"]];
+//            }else{
+//                [ALDUtils hiddenTips:self.view];
+//                [_pullTableView tableViewDidFinishedLoadingWithMessage:@"没有啦，加载完了！"];
+//                _pullTableView.reachedTheEnd = YES;
+//            }
+//        }else if(code==kHOST_ERROR) {
+//            NSString *errMsg=result.errorMsg;
+//            //            [ALDUtils showTips:self.view text:errMsg];
+//            //            [ALDUtils showToast:errMsg];
+//            NSString *text=[NSString stringWithFormat:@"该%@，请重新登录。",errMsg];
+//            UIAlertView *alertView=[[UIAlertView alloc] initWithTitle:@"温馨提示" message:text delegate:self cancelButtonTitle:nil otherButtonTitles:@"确定", nil];
+//            alertView.tag=0x550;
+//            [alertView show];
+//            
+//        }else if(code==kNET_ERROR || code==kNET_TIMEOUT){
+//            if (!_tableData || _tableData.count < 1){
+//                [self showTips:[NSString stringWithFormat:@"%@ 下拉刷新！",@"网络异常，请确认是否已连接!"]];
+//            }
+//            [_pullTableView tableViewDidFinishedLoading];
+//            if (_iPage>1) {
+//                _iPage--;
+//            }
+//        }else{
+//            NSString *errMsg=result.errorMsg;
+//            if (!_tableData || _tableData.count < 1)
+//            {
+//                errMsg=@"抱歉，获取数据失败！下拉刷新！";
+//            } else {
+//                errMsg=@"抱歉，获取数据失败！";
+//            }
+//            [ALDUtils showToast:errMsg];
+//            [_pullTableView tableViewDidFinishedLoading];
+//            _pullTableView.reachedTheEnd = YES;
+//            if (_iPage>1) {
+//                _iPage--;
+//            }
+//        }
+//    }
+    [ALDUtils removeWaitingView:self.view];
+}
+
+-(void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex
+{
+    switch (alertView.tag) {
+        case 0x550:{
+            if(buttonIndex==0){
+                AppDelegate *appDelegate=(AppDelegate *)[UIApplication sharedApplication].delegate;
+                [appDelegate loginOut];
+            }
+        }
+            break;
+            
+        default:
+            break;
+    }
+}
+
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+@end
+

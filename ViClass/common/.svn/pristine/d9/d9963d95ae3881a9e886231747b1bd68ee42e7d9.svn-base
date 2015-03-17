@@ -1,0 +1,39 @@
+//
+//  OpenApiUserBean.h
+//  OpenApi
+//
+//  Created by yulong chen on 12-12-29.
+//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+@interface OpenApiUserBean : NSObject
+/** 开放平台key **/
+@property (nonatomic, retain) NSString *appKey;
+/** 开放平台secret **/
+@property (nonatomic, retain) NSString *appSecret;
+/** 用户id **/
+@property (nonatomic, retain) NSString *userId;
+/** 用户昵称 **/
+@property (nonatomic, retain) NSString *screenName;
+/** 用户授权token **/
+@property (nonatomic, retain) NSString *accessToken;
+/** 用户授权后的secret **/
+@property (nonatomic, retain) NSString *accessSecret;
+/** 刷新token **/
+@property (nonatomic, retain) NSString *refreshToken;
+
+/** 授权有效时间 **/
+@property (nonatomic, assign) NSTimeInterval expireTime;
+
+@property (nonatomic, retain) NSString *openKey;
+
+/** 用户头像 **/
+@property (retain,nonatomic) NSString *avatar;
+/** 用户设置的地址 **/
+@property (retain,nonatomic) NSString *location;
+
+/** 所属开放平台类型，1：新浪微博 2：腾讯微博 3：支付宝 **/
+@property (nonatomic) NSInteger apiType;
+@end

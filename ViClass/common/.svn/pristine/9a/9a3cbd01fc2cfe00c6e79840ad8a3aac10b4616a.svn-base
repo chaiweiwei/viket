@@ -1,0 +1,237 @@
+//
+//  ALDHttpClient.h
+//  ZYClub
+//
+//  Created by chen yulong on 14-4-8.
+//  Copyright (c) 2014年 chen yulong. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import "ASIHTTPRequestDelegate.h"
+#import "ALDResult.h"
+#import "WaitingView.h"
+
+
+@interface UIImage ()
+
+/** 图片类型 png,jpg,其他 **/
+@property (strong,nonatomic) NSString *imageType;
+
+@end
+
+@class ALDHttpClient;
+
+typedef NSInteger HttpRequestPath;
+
+typedef NS_ENUM(NSInteger, ALDHttpRequestPath) {
+    HttpRequestPathForDownload = 10001,
+    HttpRequestPathForHtmlInfo = 10002, //html页面数据
+};
+
+@protocol DataLoadStateDelegate <NSObject>
+
+@required
+/**
+ * 数据开始加载状态通知
+ * @param httpClient 请求对象
+ * @param requestPath 请求标识
+ */
+-(void) dataStartLoad:(ALDHttpClient*)httpClient requestPath:(HttpRequestPath) requestPath;
+
+/**
+ * 数据加载状态通知
+ * @param httpClient 请求对象
+ * @param requestPath 请求标识
+ * @param code 请求结果状态,1:成功，其他
+ * @param object 加载完成回调后返回的数据对象
+ **/
+-(void) dataLoadDone:(ALDHttpClient*)httpClient requestPath:(HttpRequestPath) requestPath withCode:(NSInteger) code withObj:(ALDResult*) result;
+
+@optional
+/**
+ * 接口需要登录权限时回调
+ * @param httpClient 请求对象
+ * @param requestPath 请求标识
+ * @param code 返回状态
+ **/
+-(void) requestNeedLogin:(ALDHttpClient*)httpClient requestPath:(HttpRequestPath) requestPath withCode:(NSInteger) code;
+
+@end
+
+//post数据类型
+typedef enum
+{
+    kHttpRequestPostDataTypeNone,
+	kHttpRequestPostDataTypeNormal,			// for normal data post, such as "user=name&password=psd"
+	kHttpRequestPostDataTypeMultipart,        // for uploading images and files.
+}HttpRequestPostDataType;
+
+#define kRequestPathKey @"requestPath"
+#define kWBRequestStringBoundary @"32f073251f5941f743fe3956295fc7e7"
+
+@interface ALDHttpClient : NSObject{
+    WaitingView *_waitingView;
+    //HttpRequestPath _requestPath;
+    //ASIHTTPRequest *_request;
+}
+
+@property(retain,nonatomic) ASIHTTPRequest *currRequest; //当前请求
+
+@property(nonatomic,assign) BOOL needTipsNetError; //是否需要提醒网络未连接状态
+@property(nonatomic,retain) id<DataLoadStateDelegate> delegate;
+
+//初始化
+-(id) initWithDelegate:(id<DataLoadStateDelegate>) delegate;
+
+/** 
+ * 判断是否调试模式，默认NO
+ **/
++(BOOL) isDebug;
+
+/**
+ * 设置是否为调试模式，默认NO
+ **/
++(void) setDebug:(BOOL) isDebug;
+
++(id) httpClient;
+
++(id) httpClientWithDelegate:(id<DataLoadStateDelegate>) delegate;
+
+/**
+ * 释放网络请求
+ */
++(void) releaseNetworkQueue;
+
+/**
+ * 判断是否已经有数据缓存了
+ * @param url 请求url
+ **/
++(BOOL) hasCachedData:(NSString *) url;
+
+/**
+ * 组装post提交数据
+ * @param postDataType post发送数据类型 详见HttpRequestPostDataType
+ * @param params 参数
+ * @return 返回组装后的二进制数据
+ **/
++ (NSMutableData *)postBody:(HttpRequestPostDataType) postDataType params:(NSDictionary*)params;
+
+/**
+ * 初始化请求头
+ */
+-(void) addDefaultHeader:(ASIHTTPRequest *) request;
+
+-(void) executeRequest:(ASIHTTPRequest *) request needCache:(BOOL) needCache;
+
+-(void) addRequestToQueue:(ASIHTTPRequest*) request;
+
+/**
+ * 网络请求开始调用，子类可以重写该方法做些网络请求的准备工作
+ *
+ **/
+-(void) onRequestStart:(ASIHTTPRequest *)request;
+
+/**
+ * 网络请求完成时调用，子类可以重写该方法对网络请求结果进行处理
+ * @param isSuccess 是否成功，YES：成功，NO：失败
+ **/
+-(ALDResult*) onRequestDone:(ASIHTTPRequest *)request isSuccessed:(BOOL) isSuccess;
+
+/**
+ * Http Get请求，默认缓存数据
+ * @param params 参数组合，键(key)值(Object)对组合
+ * @param url 请求的url
+ * @param requestPath 请求标识
+ **/
+-(void) httpGetWithParams:(NSDictionary*) params withUrl:(NSString*)url requestPath:(HttpRequestPath) requestPath;
+
+/**
+ * Http Get请求
+ * @param params 参数组合，键(key)值(Object)对组合
+ * @param url 请求的url
+ * @param requestPath 请求标识
+ * @param needCache 是否缓存数据
+ **/
+-(void) httpGetWithParams:(NSDictionary*) params withUrl:(NSString*)url requestPath:(HttpRequestPath) requestPath needCache:(BOOL) needCache;
+
+/**
+ * Http Post请求,不缓存数据
+ * @param params 参数组合，键(key)值(Object)对组合
+ * @param url 请求的url
+ * @param requestPath 请求标识
+ **/
+-(void) httpPostWithParams:(NSDictionary*) params withUrl:(NSString*)url requestPath:(HttpRequestPath) requestPath;
+
+/**
+ * Http Post请求，不缓存数据
+ * @param params 参数组合，键(key)值(Object)对组合
+ * @param url 请求的url
+ * @param requestPath 请求标识
+ * @param needCache 是否缓存数据
+ **/
+-(void) httpPostWithParams:(NSDictionary*) params withUrl:(NSString*)url requestPath:(HttpRequestPath) requestPath needCache:(BOOL) needCache;
+
+/**
+ * Http Post请求，不缓存数据
+ * @param params 参数组合，键(key)值(Object)对组合
+ * @param url 请求的url
+ * @param requestPath 请求标识
+ * @param userInfo 用户附带标识数据
+ **/
+-(void) httpPostWithParams:(NSDictionary*) params withUrl:(NSString*)url requestPath:(HttpRequestPath) requestPath
+                 needCache:(BOOL) needCache userInfo:(NSMutableDictionary*)userInfo;
+
+/**
+ * Http Post发送JSON请求,不缓存数据
+ * @param params 参数组合，params为NSDictionary或NSArray
+ * @param url 请求的url
+ * @param requestPath 请求标识
+ **/
+-(void) httpPostJSONWithParams:(id) params withUrl:(NSString*)url requestPath:(HttpRequestPath) requestPath;
+
+/**
+ * Http Post发送JSON请求
+ * @param params 参数组合，params为NSDictionary或NSArray
+ * @param url 请求的url
+ * @param requestPath 请求标识
+ * @param needCache 是否缓存数据
+ **/
+-(void) httpPostJSONWithParams:(id) params withUrl:(NSString*)url requestPath:(HttpRequestPath) requestPath needCache:(BOOL) needCache;
+
+/**
+ * MD5加密
+ * @param str 源文本
+ **/
++ (NSString *) MD5:(NSString*) str;
+
+/**
+ * 停止请求
+ **/
+-(void) stopRequest;
+/**
+ * 移除请求
+ **/
+-(void) removeRequest;
+
+-(void) showWaitView:(NSString *)msg;
+
+-(void) removeWaitView;
+
+-(void) showAlert:(NSString*) title strForMsg:(NSString*) msg withTag:(NSInteger) tag otherButtonTitles:(NSString*) btnTitle;
+
+/**
+ * 文件下载
+ * @param url 文件下载url
+ * @param progressDelegate 下载进度委托
+ * @return 结果以接口回调dataLoadDone:code withObj:obj通知请求发起者，code为状态，若成功obj为NSData数据
+ **/
+-(void) download:(NSString *) url progressDelegate:(id)progressDelegate;
+
+/**
+ * 获取html内容
+ * @param url 请求页面数据url
+ * @return 结果以接口回调dataLoadDone:code withObj:obj通知请求发起者，code为状态，若成功obj为html数据
+ **/
+-(void) viewHtmlInfo:(NSString *)url;
+
+@end

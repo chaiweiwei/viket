@@ -1,0 +1,187 @@
+//
+//  MyWBEngineDelegate.m
+//  hyt_ios
+//
+//  Created by yulong chen on 12-4-21.
+//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//
+
+#import "MyWBEngineDelegate.h"
+#import "TipsUtils.h"
+#import "QQEngine.h"
+#import "OpenApiLocalizedString.h"
+
+@implementation MyWBEngineDelegate
+@synthesize delegate=_delegate;
+@synthesize viewController=_viewController;
+
+- (void)dealloc
+{
+//    NSLog(@"MyWBEngineDelegate dealloc object:%@,retainCount:%d",self,[self retainCount]);
+    [_weiBoEngine release];
+    //[_delegate release];
+    [super dealloc];
+}
+
+#pragma mark - WBEngineDelegate Methods
+
+-(OpenApiUserBean*)createUser:(WBEngine*)engine{
+    OpenApiUserBean *user=[[OpenApiUserBean alloc] init];
+    //user数据初始化操作
+    user.appKey=engine.appKey;
+    user.appSecret=engine.appSecret;
+    user.userId=engine.userID;
+    user.screenName=engine.screenName;
+    user.accessToken=engine.accessToken;
+    user.expireTime=engine.expireTime;
+    user.openKey=engine.openKey;
+    user.apiType=engine.weiboType;
+    return [user autorelease];
+}
+
+#pragma mark Authorize
+//已经授权，不需要重复授权
+- (void)engineAlreadyLoggedIn:(WBEngine *)engine
+{
+    //此处处理
+    [engine showUser:engine.userID];
+
+}
+
+//登陆成功回调
+- (void)engineDidLogIn:(WBEngine *)engine
+{
+    //回调处理
+    [engine showUser:engine.userID];
+}
+
+//登陆失败回调
+- (void)engine:(WBEngine *)engine didFailToLogInWithError:(NSError *)error
+{
+    if (error.code!=21330) {
+        [ALDUtils showToast:OpenApiLocalizedString(@"用户授权失败，稍后再试!",@"bind_error",@"")];
+    }
+    //回调处理
+    if ([_delegate respondsToSelector:@selector(openApiLoginFailed:)])
+    {
+        [_delegate openApiLoginFailed:error];
+    }
+}
+
+//取消授权成功回调
+- (void)engineDidLogOut:(WBEngine *)engine
+{
+    //取消授权成功处理
+//    if ([_delegate respondsToSelector:@selector(response:requestDidSucceedWithResult:)])
+//    {
+//        [_delegate response:engine requestDidSucceedWithResult:nil];
+//    }
+}
+
+//未授权
+- (void)engineNotAuthorized:(WBEngine *)engine
+{
+    [ALDUtils showToast:OpenApiLocalizedString(@"需要用户授权",@"need_bind_weibo",@"")];
+    [engine logIn];
+}
+
+//授权过期,需要重新授权
+- (void)engineAuthorizeExpired:(WBEngine *)engine
+{
+    [ALDUtils showToast:OpenApiLocalizedString(@"用户授权已过期，需重新绑定",@"bind_expired",@"")];
+    [engine logIn];
+}
+
+/**
+ *  请求失败回调
+ */
+- (void)engine:(WBEngine *)engine requestDidFailWithError:(NSError *)error{
+    NSLog(@"error:%@",error);
+    if (engine.requestPath==WeiboRequestPathForShowUser) {
+        if (_viewController) {
+            [TipsUtils removeWaitingView:_viewController.view];
+        }
+        [ALDUtils showToast:OpenApiLocalizedString(@"用户授权成功",@"bind_success",@"")];
+        [engine saveScreenName:nil];
+        if ([_delegate respondsToSelector:@selector(openApiLoginFailed:)])
+        {
+            [_delegate openApiLoginSuccessed:[self createUser:engine]];
+        }
+    }else {
+        if ([_delegate respondsToSelector:@selector(response:openApiDidFailWithError:)]) {
+            [_delegate response:engine openApiDidFailWithError:error];
+        }
+    }
+    
+}
+
+/**
+ *  请求成功回调
+ */
+- (void)engine:(WBEngine *)engine requestDidSucceedWithResult:(id)result{
+    if (engine.requestPath==WeiboRequestPathForShowUser) {
+        [ALDUtils showToast:OpenApiLocalizedString(@"用户授权成功",@"bind_success",@"")];
+        if (_viewController) {
+            [TipsUtils removeWaitingView:_viewController.view];
+        }
+        OpenApiUserBean *userBean=[self createUser:engine];
+        if ([result isKindOfClass:[NSDictionary class]]) {
+            NSDictionary *user=(NSDictionary *)result;
+            NSString *screenName=nil;
+            if (engine.weiboType==TypeTecentWeibo) {
+                user=[user objectForKey:@"data"];
+                if (user!=nil) {
+                    screenName=[user objectForKey:@"name"];
+                    userBean.avatar=[user objectForKey:@"head"];
+                    userBean.location=[user objectForKey:@"location"];
+                }
+            }else if (engine.weiboType==TypeWyWeibo) {
+                engine.userID=[user objectForKey:@"id"];
+                screenName=[user objectForKey:@"name"];
+                userBean.avatar=[user objectForKey:@"profile_image_url"];
+                userBean.location=[user objectForKey:@"location"];
+            }else if ([engine isKindOfClass:[QQEngine class]]) {
+                int ret=[[user objectForKey:@"ret"] intValue];
+                if (ret!=0) {
+                    NSLog(@"showUser Error:%d,%@",ret,[user objectForKey:@"errcode"]);
+                    //                        if ([_delegate respondsToSelector:@selector(openApiLoginFailed:)]) {
+                    //                            NSError *error=[NSError errorWithDomain:@"" code:ret userInfo:nil];
+                    //                            [_delegate openApiLoginFailed:error];
+                    //                        }
+                }else {
+                    user=[user objectForKey:@"data"];
+                    if (user!=nil) {
+                        screenName=[user objectForKey:@"nick"];
+                        NSString *head=[user objectForKey:@"head"];
+                        if (head && ![head isEqualToString:@""]) {
+                            head=[head stringByAppendingString:@"/100"]; //头像有如下3种不同的尺寸：100px，50px，30px，这里取100
+                        }
+                        userBean.avatar=head;
+                        userBean.location=[user objectForKey:@"location"];
+                    }
+                }
+            } else {
+                screenName=[user objectForKey:@"screen_name"];
+                NSString *head=[user objectForKey:@"avatar_large"];
+                if (![head isKindOfClass:[NSString class]] || [head isEqualToString:@""]) {
+                    head=[user objectForKey:@"profile_image_url"];
+                }
+                userBean.avatar=head;
+                userBean.location=[user objectForKey:@"location"];
+            }
+            [engine saveScreenName:screenName];
+            userBean.screenName=screenName;
+        }
+        if ([_delegate respondsToSelector:@selector(openApiLoginSuccessed:)])
+        {
+            [_delegate openApiLoginSuccessed:userBean];
+        }
+    }else {
+        if ([_delegate respondsToSelector:@selector(response:openApiDidSucceedWithResult:)]) {
+            [_delegate response:engine openApiDidSucceedWithResult:result];
+        }
+    }
+    
+}
+
+@end

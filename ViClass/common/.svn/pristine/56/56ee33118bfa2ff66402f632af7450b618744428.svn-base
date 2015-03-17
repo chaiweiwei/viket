@@ -1,0 +1,18 @@
+//
+//  BaseNavigationController.h
+//  GHSidebarNav
+//
+//  Created by yulong chen on 12-12-21.
+//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+
+@interface BaseNavigationController : UINavigationController{
+    UIViewController *_parentController; //NO retain
+}
+@property (assign,nonatomic) UIViewController *parentController; //NO retain
+
+@property (nonatomic, readonly) BOOL containmentAPISupported;
+
+@end

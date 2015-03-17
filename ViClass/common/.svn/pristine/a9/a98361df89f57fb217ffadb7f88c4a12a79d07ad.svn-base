@@ -1,0 +1,39 @@
+//
+//  GlobalValues.h
+//  WeiboApi
+//
+//  Created by yulong chen on 12-7-31.
+//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//
+
+#ifndef WeiboApi_GlobalValues_h
+#define WeiboApi_GlobalValues_h
+
+//以下是一些数据请求错误码的定义
+//#define kDATA_ERROR -500 //返回数据格式错误
+//#define kNET_ERROR -400  //网络异常
+//#define kSTORE_ERROR -300 //数据存储错误
+//#define kNET_TIMEOUT -100 //网络超时
+//#define kHOST_ERROR -3  //主机异常
+#define kREQUEST_PARAM_ERROR -2 //参数错误
+//#define kAPPID_ERROR -1 //appid非法或分配失败
+//#define kNO_RESULT 0 //请求结果为空
+//#define KOK 1 //请求OK
+//#define kNO_UPDATE 304 //没有数据更新
+//#define kERROR_REQUEST 400 //其他任何非法请求
+//#define kNOT_AUTHORIZED 401 //请求未授权
+#define kSystemVersion [[[UIDevice currentDevice] systemVersion] floatValue]
+/*
+ * 授权方式，InAuth1－msf授权，InSafari－浏览器登录授权,InWebView-采用webView方式登录授权
+ */
+//typedef enum
+//{
+//    OpenApiSWeiboLogin = 1, //新浪微博登录
+//    OpenApiTWeiboLogin = 2, //腾讯微博登录
+//    OpenApiWyWeiboLogin = 3, //网易微博登录
+//    OpenApiWeixinLogin = 4, //微信登录
+//    OpenApiQQLogin = 5, //QQ号登录
+//    OpenApiTaobaoLogin = 6, //淘宝账号登录
+//}OpenApiLoginType;
+
+#endif

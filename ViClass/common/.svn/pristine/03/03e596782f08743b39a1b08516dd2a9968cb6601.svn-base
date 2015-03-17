@@ -1,0 +1,443 @@
+//
+//  WeixinDelegateImpl.m
+//  OpenApi
+//  微信开发平台委托实现
+//  Created by chen yulong on 13-6-13.
+//
+//
+
+#import "WeixinDelegateImpl.h"
+
+
+@implementation WeixinDelegateImpl
+@synthesize scene=_scene;
+
+/**
+ * 初始化微信委托
+ * @param appid 微信开放平台id
+ * @return 返回对象
+ **/
+-(id) initWithAppid:(NSString *) appId{
+    self = [super init];
+    if (self) {
+        [WXApi registerApp:appId];
+    }
+    return self;
+}
+
+#pragma mark weixin methods
+- (void) viewContent:(WXMediaMessage *) msg
+{
+    //显示微信传过来的内容
+    WXAppExtendObject *obj = msg.mediaObject;
+    
+    NSString *strTitle = [NSString stringWithFormat:@"消息来自微信"];
+    NSString *strMsg = [NSString stringWithFormat:@"标题：%@ \n内容：%@ \n附带信息：%@ \n缩略图:%u bytes\n\n", msg.title, msg.description, obj.extInfo, msg.thumbData.length];
+    
+    UIAlertView *alert = [[UIAlertView alloc] initWithTitle:strTitle message:strMsg delegate:self cancelButtonTitle:@"OK" otherButtonTitles:nil, nil];
+    [alert show];
+}
+
+//- (BOOL)doAuth
+//{
+//    SendAuthReq* req = [[[SendAuthReq alloc] init] autorelease];
+//    req.scope = @"post_timeline";
+//    req.state = @"xxx";
+//    
+//    return [WXApi sendReq:req];
+//}
+
+-(void) changeScene:(NSInteger)scene{
+    _scene = scene;
+}
+
+-(void) onSentTextMessage:(BOOL) bSent
+{
+    // 通过微信发送消息后， 返回本App
+    NSString *strTitle = [NSString stringWithFormat:@"发送结果"];
+    NSString *strMsg = [NSString stringWithFormat:@"发送文本消息结果:%u", bSent];
+    
+    UIAlertView *alert = [[UIAlertView alloc] initWithTitle:strTitle message:strMsg delegate:self cancelButtonTitle:@"OK" otherButtonTitles:nil, nil];
+    [alert show];
+}
+
+-(void) onSentMediaMessage:(BOOL) bSent
+{
+    // 通过微信发送消息后， 返回本App
+    NSString *strTitle = [NSString stringWithFormat:@"发送结果"];
+    NSString *strMsg = [NSString stringWithFormat:@"发送媒体消息结果:%u", bSent];
+    
+    UIAlertView *alert = [[UIAlertView alloc] initWithTitle:strTitle message:strMsg delegate:self cancelButtonTitle:@"OK" otherButtonTitles:nil, nil];
+    [alert show];
+}
+
+-(void) onSentAuthRequest:(NSString *) userName accessToken:(NSString *) token expireDate:(NSDate *) expireDate errorMsg:(NSString *) errMsg
+{
+    NSLog(@"userName:%@, token:%@, expireDate:%@ ,errMsg:%@",userName,token,expireDate,errMsg);
+}
+
+-(void) onShowMediaMessage:(WXMediaMessage *) message
+{
+    // 微信启动， 有消息内容。
+    [self viewContent:message];
+}
+
+-(void) onRequestAppMessage
+{
+    // 微信请求App提供内容， 需要app提供内容后使用sendRsp返回
+    
+    //    RespForWeChatViewController* controller = [[RespForWeChatViewController alloc]autorelease];
+    //    controller.delegate = self;
+    //    [self.viewController presentModalViewController:controller animated:YES];
+    
+}
+
+-(void) onReq:(BaseReq*)req
+{
+    if([req isKindOfClass:[GetMessageFromWXReq class]])
+    {
+        [self onRequestAppMessage];
+    }
+    else if([req isKindOfClass:[ShowMessageFromWXReq class]])
+    {
+        ShowMessageFromWXReq* temp = (ShowMessageFromWXReq*)req;
+        [self onShowMediaMessage:temp.message];
+    }
+    
+}
+
+-(void) onResp:(BaseResp*)resp
+{
+    if([resp isKindOfClass:[SendMessageToWXResp class]])
+    {
+        NSString *strTitle = [NSString stringWithFormat:@"发送结果"];
+        NSString *strMsg = nil;
+        if (resp.errCode==0) {
+            strMsg=@"分享到微信成功！";
+        }else {
+            strMsg=@"分享到微信失败！";
+        }
+        
+        UIAlertView *alert = [[UIAlertView alloc] initWithTitle:strTitle message:strMsg delegate:self cancelButtonTitle:@"OK" otherButtonTitles:nil, nil];
+        [alert show];
+    }
+//    else if([resp isKindOfClass:[SendAuthResp class]])
+//    {
+//        SendAuthResp *authResp=(SendAuthResp*)resp;
+//        NSString *strTitle = [NSString stringWithFormat:@"Auth结果"];
+//        NSString *strMsg   = [NSString stringWithFormat:@"Auth结果:%d", resp.errCode];
+//        NSLog(@"userName:%@, token:%@, expireDate:%@ ,state:%@",authResp.userName,authResp.token,authResp.expireDate,authResp.state);
+//        
+//        UIAlertView *alert = [[UIAlertView alloc] initWithTitle:strTitle message:strMsg delegate:self cancelButtonTitle:@"OK" otherButtonTitles:nil, nil];
+//        [alert show];
+//        [alert release];
+//    }
+}
+
+
+- (BOOL) sendImageContent:(UIImage*) image filePath:(NSString*) filePath
+{
+    //发送内容给微信
+    WXMediaMessage *message = [WXMediaMessage message];
+    [message setThumbImage:image];
+    
+    WXImageObject *ext = [WXImageObject object];
+    //    NSString *filePath = [[NSBundle mainBundle] pathForResource:@"res1" ofType:@"jpg"];
+    ext.imageData = [NSData dataWithContentsOfFile:filePath] ;
+    
+    message.mediaObject = ext;
+    
+    SendMessageToWXReq* req = [[SendMessageToWXReq alloc] init];
+    req.bText = NO;
+    req.message = message;
+    req.scene = _scene;
+    
+    return [WXApi sendReq:req];
+}
+
+- (BOOL) RespImageContent:(UIImage*) image filePath:(NSString*) filePath
+{
+    WXMediaMessage *message = [WXMediaMessage message];
+    [message setThumbImage:image];
+    WXImageObject *ext = [WXImageObject object];
+    //    NSString *filePath = [[NSBundle mainBundle] pathForResource:@"res2" ofType:@"jpg"];
+    ext.imageData = [NSData dataWithContentsOfFile:filePath] ;
+    message.mediaObject = ext;
+    
+    GetMessageFromWXResp* resp = [[GetMessageFromWXResp alloc] init];
+    resp.message = message;
+    resp.bText = NO;
+    
+    return [WXApi sendResp:resp];
+}
+
+/**
+ * 发送新闻资讯
+ **/
+- (BOOL) sendNewsContent:(NSString *)title content:(NSString*)content image:(UIImage*)image url:(NSString*)url
+{
+    WXMediaMessage *message = [WXMediaMessage message];
+    message.title = title;
+    message.description = content;
+    [message setThumbImage:image];
+    
+    WXWebpageObject *ext = [WXWebpageObject object];
+    ext.webpageUrl = url;
+    
+    message.mediaObject = ext;
+    
+    SendMessageToWXReq* req = [[SendMessageToWXReq alloc] init];
+    req.bText = NO;
+    req.message = message;
+    req.scene = _scene;
+    
+    return [WXApi sendReq:req];
+}
+
+-(BOOL) RespNewsContent:(NSString*) title content:(NSString*)content image:(UIImage*) image url:(NSString*)url
+{
+    WXMediaMessage *message = [WXMediaMessage message];
+    message.title = title;
+    message.description =content;
+    [message setThumbImage:image];
+    
+    WXWebpageObject *ext = [WXWebpageObject object];
+    ext.webpageUrl = url;
+    
+    message.mediaObject = ext;
+    
+    GetMessageFromWXResp* resp = [[GetMessageFromWXResp alloc] init];
+    resp.message = message;
+    resp.bText = NO;
+    
+    return [WXApi sendResp:resp];
+}
+
+-(BOOL) sendMusicContent:(NSString *)title content:(NSString*)content musicUrl:(NSString*)musicUrl musicDataUrl:(NSString*)musicDataUrl
+{
+    WXMediaMessage *message = [WXMediaMessage message];
+    message.title = title;
+    message.description = content;
+    [message setThumbImage:[UIImage imageNamed:@"res3.jpg"]];
+    
+    WXMusicObject *ext = [WXMusicObject object];
+    ext.musicUrl = musicUrl;
+    ext.musicDataUrl = musicDataUrl;
+    
+    message.mediaObject = ext;
+    
+    SendMessageToWXReq* req = [[SendMessageToWXReq alloc] init];
+    req.bText = NO;
+    req.message = message;
+    req.scene = _scene;
+    
+    return [WXApi sendReq:req];
+}
+
+-(BOOL) RespMusicContent:(NSString *)title content:(NSString*)content musicUrl:(NSString*)musicUrl musicDataUrl:(NSString*)musicDataUrl
+{
+    WXMediaMessage *message = [WXMediaMessage message];
+    message.title = title;
+    message.description = content;
+    [message setThumbImage:[UIImage imageNamed:@"res3.jpg"]];
+    WXMusicObject *ext = [WXMusicObject object];
+    ext.musicUrl =musicUrl;
+    ext.musicDataUrl = musicDataUrl;
+    
+    message.mediaObject = ext;
+    
+    GetMessageFromWXResp* resp = [[GetMessageFromWXResp alloc] init];
+    resp.message = message;
+    resp.bText = NO;
+    
+    return [WXApi sendResp:resp];
+}
+
+-(BOOL) sendVideoContent:(NSString *)title content:(NSString*)content image:(UIImage*)image videoUrl:(NSString*)videoUrl
+{
+    WXMediaMessage *message = [WXMediaMessage message];
+    message.title =title;
+    message.description = content;
+    [message setThumbImage:image];
+    
+    WXVideoObject *ext = [WXVideoObject object];
+    ext.videoUrl = videoUrl;
+    
+    message.mediaObject = ext;
+    
+    SendMessageToWXReq* req = [[SendMessageToWXReq alloc] init];
+    req.bText = NO;
+    req.message = message;
+    req.scene = _scene;
+    
+    return [WXApi sendReq:req];
+}
+
+-(BOOL) RespVideoContent:(NSString *)title content:(NSString*)content image:(UIImage*)image videoUrl:(NSString*)videoUrl
+{
+    WXMediaMessage *message = [WXMediaMessage message];
+    message.title = title;
+    message.description = content;
+    [message setThumbImage:image];
+    
+    WXVideoObject *ext = [WXVideoObject object];
+    ext.videoUrl = videoUrl;
+    
+    message.mediaObject = ext;
+    
+    GetMessageFromWXResp* resp = [[GetMessageFromWXResp alloc] init];
+    resp.message = message;
+    resp.bText = NO;
+    
+    return [WXApi sendResp:resp];
+}
+
+- (BOOL) sendTextContent:(NSString*)nsText
+{
+    SendMessageToWXReq* req = [[SendMessageToWXReq alloc] init];
+    req.bText = YES;
+    req.text = nsText;
+    req.scene = _scene;
+    
+    return [WXApi sendReq:req];
+}
+
+-(BOOL) RespTextContent:(NSString *)nsText
+{
+    GetMessageFromWXResp* resp = [[GetMessageFromWXResp alloc] init];
+    resp.text = nsText;
+    resp.bText = YES;
+    
+    return [WXApi sendResp:resp];
+}
+
+#define BUFFER_SIZE 1024 * 100
+- (BOOL) sendAppContent:(NSString *)title content:(NSString*)content image:(UIImage*)image appUrl:(NSString*)appUrl extInfo:(NSString*)extInfo filePath:(NSString*)filePath
+{
+    // 发送内容给微信
+    WXMediaMessage *message = [WXMediaMessage message];
+    message.title =title;
+    message.description = content;
+    [message setThumbImage:image];
+    
+    WXAppExtendObject *ext = [WXAppExtendObject object];
+    ext.extInfo = extInfo;
+    ext.url = appUrl;
+    
+    //    NSString *path=[[NSBundle mainBundle] pathForResource:@"file/hzapp" ofType:@"apk"];
+    NSFileManager *fileManager = [[NSFileManager alloc] init];
+    if ([fileManager fileExistsAtPath:filePath]) {
+        NSData *data = [NSData dataWithContentsOfFile:filePath];
+        //        NSLog(@"nsdata:%d",[data length]);
+        ext.fileData = data;
+    }
+    
+    message.mediaObject = ext;
+    
+    SendMessageToWXReq* req = [[SendMessageToWXReq alloc] init];
+    req.bText = NO;
+    req.message = message;
+    req.scene = _scene;
+    
+    return [WXApi sendReq:req];
+}
+
+-(BOOL) RespAppContent:(NSString *)title content:(NSString*)content image:(UIImage*)image appUrl:(NSString*)appUrl extInfo:(NSString*)extInfo filePath:(NSString*)filePath
+{
+    WXMediaMessage *message = [WXMediaMessage message];
+    message.title = title;
+    message.description = content;
+    [message setThumbImage:image];
+    
+    WXAppExtendObject *ext = [WXAppExtendObject object];
+    ext.extInfo =extInfo;
+    
+    NSFileManager *fileManager = [[NSFileManager alloc] init];
+    if ([fileManager fileExistsAtPath:filePath]) {
+        NSData *data = [NSData dataWithContentsOfFile:filePath];
+        //        NSLog(@"nsdata:%d",[data length]);
+        ext.fileData = data;
+    }
+    
+    message.mediaObject = ext;
+    
+    GetMessageFromWXResp* resp = [[GetMessageFromWXResp alloc] init];
+    resp.message = message;
+    resp.bText = NO;
+    
+    return [WXApi sendResp:resp];
+}
+
+- (BOOL) sendNonGifContent:(UIImage*)image filePath:(NSString*)filePath
+{
+    //发送内容给微信
+    WXMediaMessage *message = [WXMediaMessage message];
+    [message setThumbImage:image];
+    
+    WXEmoticonObject *ext = [WXEmoticonObject object];
+    //    NSString *filePath = [[NSBundle mainBundle] pathForResource:@"res1" ofType:@"jpg"];
+    ext.emoticonData = [NSData dataWithContentsOfFile:filePath] ;
+    
+    message.mediaObject = ext;
+    
+    SendMessageToWXReq* req = [[SendMessageToWXReq alloc] init];
+    req.bText = NO;
+    req.message = message;
+    req.scene = _scene;
+    
+    return [WXApi sendReq:req];
+}
+
+- (BOOL)RespNonGifContent:(UIImage*)image filePath:(NSString*)filePath{
+    WXMediaMessage *message = [WXMediaMessage message];
+    [message setThumbImage:image];
+    
+    WXEmoticonObject *ext = [WXEmoticonObject object];
+    //    NSString *filePath = [[NSBundle mainBundle] pathForResource:@"res1" ofType:@"jpg"];
+    ext.emoticonData = [NSData dataWithContentsOfFile:filePath] ;
+    message.mediaObject = ext;
+    
+    GetMessageFromWXResp* resp = [[GetMessageFromWXResp alloc] init];
+    resp.message = message;
+    resp.bText = NO;
+    
+    return [WXApi sendResp:resp];
+}
+
+- (BOOL) sendGifContent:(UIImage*)image filePath:(NSString*)filePath
+{
+    //发送内容给微信
+    WXMediaMessage *message = [WXMediaMessage message];
+    [message setThumbImage:image];
+    
+    WXEmoticonObject *ext = [WXEmoticonObject object];
+    //    NSString *filePath = [[NSBundle mainBundle] pathForResource:@"res6" ofType:@"gif"];
+    ext.emoticonData = [NSData dataWithContentsOfFile:filePath] ;
+    
+    message.mediaObject = ext;
+    
+    SendMessageToWXReq* req = [[SendMessageToWXReq alloc] init];
+    req.bText = NO;
+    req.message = message;
+    req.scene = _scene;
+    
+    return [WXApi sendReq:req];
+}
+
+- (BOOL)RespGifContent:(UIImage*)image filePath:(NSString*)filePath
+{
+    WXMediaMessage *message = [WXMediaMessage message];
+    [message setThumbImage:image];
+    WXEmoticonObject *ext = [WXEmoticonObject object];
+    //    NSString *filePath = [[NSBundle mainBundle] pathForResource:@"res6" ofType:@"gif"];
+    ext.emoticonData = [NSData dataWithContentsOfFile:filePath] ;
+    message.mediaObject = ext;
+    
+    GetMessageFromWXResp* resp = [[GetMessageFromWXResp alloc] init];
+    resp.message = message;
+    resp.bText = NO;
+    
+    return [WXApi sendResp:resp];
+}
+
+@end

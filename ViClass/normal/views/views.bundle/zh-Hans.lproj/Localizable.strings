@@ -1,0 +1,31 @@
+/* 
+  Localizable.strings
+  GWCClub
+
+  Created by yulong chen on 13-3-14.
+  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+*/
+
+"Pull_down_refresh" = "下拉刷新";
+"Pull_up_Load" = "上拉加载更多";
+"Refreshing" = "正在刷新";
+"Loading" = "加载中，请稍候...";
+"Release_load_more" = "释放加载更多";
+"Release_refresh" = "释放刷新";
+"No_more" = "没有了哦";
+"Today" = "今天";
+"Yesterday" = "昨天";
+"Before_yesterday" = "前天";
+"Latest_update" = "最后更新";
+"App_Sponsored" = "APP 赞助商";
+"Close" = "关闭";
+"OK" = "确定";
+"MsgTips" = "温馨提示";
+"Click_choice" = "点击选择";
+"device no msg" = "设备没有短信功能";
+"not support msg" ="iOS版本过低，iOS4.0以上才支持程序内发送短信";
+"cancel msg" = "你已取消短信分享";
+"msg ok" = "短信分享成功";
+"msg failed" = "短信分享失败";
+"year mouth day" = "yyyy年MM月dd日";
+"mouth day" = "MM月dd日";

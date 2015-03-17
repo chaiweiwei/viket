@@ -1,0 +1,680 @@
+//
+//  ALDHttpClient.m
+//  ZYClub
+//
+//  Created by chen yulong on 14-4-8.
+//  Copyright (c) 2014年 chen yulong. All rights reserved.
+//
+
+#import "ALDHttpClient.h"
+#import <CommonCrypto/CommonDigest.h>
+#import <CommonCrypto/CommonHMAC.h>
+#import "ASIHTTPRequest.h"
+#import "ASIFormDataRequest.h"
+#import "ASIDownloadCache.h"
+#import "ASINetworkQueue.h"
+#import "SBJson.h"
+#import "ALDUtils.h"
+#import "NSDictionaryAdditions.h"
+#import "NetworkTest.h"
+#import "StringUtil.h"
+#import <objc/runtime.h>
+#import "MediaBean.h"
+
+@implementation UIImage (ALDHttpClient)
+static void * MyKey = (void *)@"MyKey";
+
+-(void) setImageType:(NSString*)imageType{
+    objc_setAssociatedObject(self, MyKey, imageType, OBJC_ASSOCIATION_COPY_NONATOMIC);
+}
+
+-(NSString*) imageType{
+    return objc_getAssociatedObject(self, MyKey);
+}
+
+@end
+
+@interface ALDHttpClient(private)<ASIHTTPRequestDelegate>
+
+-(void) initQueue;
+
+@end
+
+@implementation ALDHttpClient
+
+static ASINetworkQueue *networkQueue;
+static NSMutableArray *_httpRequests;
+
+-(void) initQueue{
+    if (!networkQueue) {
+        _httpRequests=[[NSMutableArray alloc] init];
+        [[ASIDownloadCache sharedCache] setShouldRespectCacheControlHeaders:NO]; //设置缓存忽略http头
+        [ASIHTTPRequest setShouldUpdateNetworkActivityIndicator:YES]; //是否显示网络请求信息在status bar上
+        networkQueue = [[ASINetworkQueue alloc] init];
+        //[networkQueue reset];
+        //[networkQueue setDownloadProgressDelegate:progressIndicator];
+        //[networkQueue setRequestDidReceiveResponseHeadersSelector:@selector(request:didReceiveResponseHeaders:)];
+        [networkQueue setRequestDidStartSelector:@selector(requestStarted:)];
+        [networkQueue setRequestDidFinishSelector:@selector(requestFinished:)];
+        [networkQueue setRequestDidFailSelector:@selector(requestFailed:)];
+        [networkQueue setShouldCancelAllRequestsOnFailure:NO ]; //设置为NO当取消了一个请求，不至于取消所有的请求
+        [networkQueue setMaxConcurrentOperationCount:10]; //最大同时执行任务数
+        //[networkQueue setShowAccurateProgress:[accurateProgress isOn]]; //设置精确控制进度
+        //[networkQueue setDelegate:self];
+        [networkQueue go];
+    }
+}
+
+- (instancetype)init
+{
+    self = [super init];
+    if (self) {
+        [self initQueue];
+        self.needTipsNetError=NO;
+    }
+    return self;
+}
+
+/**
+ * 释放网络请求
+ */
++(void) releaseNetworkQueue{
+    if (networkQueue) {
+        [_httpRequests removeAllObjects];
+        ALDRelease(_httpRequests);
+        _httpRequests=nil;
+        [networkQueue cancelAllOperations];
+        ALDRelease(networkQueue);
+        networkQueue=nil;
+    }
+}
+
+-(id) initWithDelegate:(id<DataLoadStateDelegate>) delegate{
+    self = [self init];
+    if (self) {
+        self.delegate=delegate;
+    }
+    return self;
+}
+
++(id) httpClient{
+    ALDHttpClient *http = ALDReturnAutoreleased([[self alloc] init]);
+    return http;
+}
+
++(id) httpClientWithDelegate:(id<DataLoadStateDelegate>) delegate{
+    return ALDReturnAutoreleased([[self alloc] initWithDelegate:delegate]);
+}
+
+/**
+ * 初始化请求头，子类如需特殊处理，可以重新该方法
+ * @param request
+ * @return
+ */
+-(void) addDefaultHeader:(ASIHTTPRequest *) request{
+    [request addRequestHeader:@"x-provider-name" value:@"ALIDAO"];
+    [request addRequestHeader:@"x_platform" value:@"ios"];
+}
+
+-(void) executeRequest:(ASIHTTPRequest *) request needCache:(BOOL) needCache{
+    [self addDefaultHeader:request];
+    [request setShouldAttemptPersistentConnection:NO]; //设置是否重用链接
+    [request setTimeOutSeconds:20]; //设置超时时间，单位秒
+    [request setNumberOfTimesToRetryOnTimeout:0]; //设置请求超时时，设置重试的次数
+    [request setDelegate:self];
+    [request setShouldContinueWhenAppEntersBackground:YES];  //当应用后台运行时仍然请求数据
+    needCache=NO;
+    if (needCache) {
+        [request setDownloadCache:[ASIDownloadCache sharedCache]];
+        [request setSecondsToCache:60*60*24*30]; // 缓存30 天
+        [request setCacheStoragePolicy:ASICachePermanentlyCacheStoragePolicy];
+        [request setCachePolicy:ASIAskServerIfModifiedCachePolicy|ASIFallbackToCacheIfLoadFailsCachePolicy];
+    }else {
+        [request setCachePolicy:ASIDoNotReadFromCacheCachePolicy]; //设置不使用缓存
+    }
+    //[request startAsynchronous];
+    self.currRequest=request;
+    [_httpRequests addObject:self];
+    [networkQueue addOperation:request];
+}
+
+-(void) addRequestToQueue:(ASIHTTPRequest*) request{
+    if (request) {
+        [_httpRequests addObject:self];
+        [networkQueue addOperation:request];
+    }
+}
+
+/**
+ * Http Get请求，默认缓存数据
+ * @param params 参数组合，键(key)值(Object)对组合
+ * @param url 请求的url
+ * @param requestPath 请求标识
+ **/
+-(void) httpGetWithParams:(NSDictionary*) params withUrl:(NSString*)url requestPath:(HttpRequestPath) requestPath{
+    [self httpGetWithParams:params withUrl:url requestPath:requestPath needCache:YES];
+}
+
+/**
+ * Http Get请求
+ * @param params 参数组合，键(key)值(Object)对组合
+ * @param url 请求的url
+ * @param requestPath 请求标识
+ * @param needCache 是否缓存数据
+ **/
+-(void) httpGetWithParams:(NSDictionary*) params withUrl:(NSString*)url requestPath:(HttpRequestPath) requestPath needCache:(BOOL) needCache{
+    if (params && params.count>0) {
+        NSArray *allKeys=[params allKeys];
+        for (NSString *key in allKeys) {
+            id value=[params objectForKey:key];
+            if ([value isKindOfClass:[NSData class]] || [value isKindOfClass:[UIImage class]]) {
+                return [self httpPostWithParams:params withUrl:url requestPath:requestPath];
+            }
+        }
+        NSString *strParams=[ALDHttpClient stringFromDictionary:params];
+        if ([url rangeOfString:@"?"].location==NSNotFound) {
+            url=[url stringByAppendingFormat:@"?%@",strParams];
+        }else{
+            if ([url hasSuffix:@"?"]) {
+                url=[url stringByAppendingString:strParams];
+            }else{
+                url=[url stringByAppendingFormat:@"&%@",strParams];
+            }
+        }
+    }
+    ASIHTTPRequest *request = [ASIHTTPRequest requestWithURL:[NSURL URLWithString:url]];
+    NSMutableDictionary *userInfo=[NSMutableDictionary dictionary];
+    [userInfo setValue:[NSNumber numberWithInteger:requestPath] forKey:kRequestPathKey];
+    request.userInfo=userInfo;
+    [self executeRequest:request needCache:needCache];
+}
+
+-(void) httpPostWithParams:(NSDictionary *)params withUrl:(NSString *)url requestPath:(HttpRequestPath)requestPath{
+    [self httpPostWithParams:params withUrl:url requestPath:requestPath needCache:NO];
+}
+
+/**
+ * Http Post请求，不缓存数据
+ * @param params 参数组合，键(key)值(Object)对组合
+ * @param url 请求的url
+ * @param requestPath 请求标识
+ **/
+-(void) httpPostWithParams:(NSDictionary*) params withUrl:(NSString*)url requestPath:(HttpRequestPath) requestPath needCache:(BOOL) needCache{
+    [self httpPostWithParams:params withUrl:url requestPath:requestPath needCache:needCache userInfo:nil];
+}
+
+/**
+ * Http Post请求，不缓存数据
+ * @param params 参数组合，键(key)值(Object)对组合
+ * @param url 请求的url
+ * @param requestPath 请求标识
+ * @param userInfo 用户附带标识数据
+ **/
+-(void) httpPostWithParams:(NSDictionary*) params withUrl:(NSString*)url requestPath:(HttpRequestPath) requestPath
+                 needCache:(BOOL) needCache userInfo:(NSMutableDictionary*)userInfo{
+    ASIFormDataRequest *request=[ASIFormDataRequest requestWithURL:[NSURL URLWithString:url]];
+    [request setPostFormat:ASIURLEncodedPostFormat];
+    
+    if (params && params.count>0) {
+        NSArray *allKeys=[params allKeys];
+        for (NSString *key in allKeys) {
+            id value=[params objectForKey:key];
+            if ([value isKindOfClass:[NSData class]]) {
+                [request addData:value forKey:key];
+            } else if ([value isKindOfClass:[UIImage class]]){
+                NSData* imageData = nil;
+                UIImage *image=(UIImage*) value;
+                NSString *ext=image.imageType;
+                NSString *imageType=nil;
+                if (ext && [ext isEqualToString:@"png"]) {
+                    imageType=@"image/png";
+                    imageData = UIImagePNGRepresentation(image);
+                }else{
+                    ext=@"jpg";
+                    imageType=@"image/jpeg";
+                    imageData=UIImageJPEGRepresentation(image, 1);
+                }
+                [request addData:imageData withFileName:[NSString stringWithFormat:@"%@.%@",key,ext] andContentType:imageType forKey:key];
+            } else if([value isKindOfClass:[MediaBean class]]){
+                MediaBean *bean=(MediaBean*)value;
+                NSData *data=bean.data;
+                if (!data) {
+                    continue;
+                }
+                NSString *contentType=bean.contentType;
+                NSString *type=bean.type; //[file|image|audio|video]
+                NSString *fileName=bean.fileName;
+                if (fileName==nil || [fileName isEqualToString:@""]) {
+                    if ([type isEqualToString:kFileTypeOfImage]) {
+                        fileName=[NSString stringWithFormat:@"%@.jpg",key];
+                    }else if ([type isEqualToString:kFileTypeOfAudio]){
+                        fileName=[NSString stringWithFormat:@"%@.pcm",key];
+                    }else if ([type isEqualToString:kFileTypeOfVideo]){
+                        fileName=[NSString stringWithFormat:@"%@.mp4",key];
+                    }else {
+                        fileName=[NSString stringWithFormat:@"%@.file",key];
+                    }
+                }
+                
+                if (contentType==nil) {
+                    if ([type isEqualToString:@"image"]) {
+                        contentType=@"image/jpeg";
+                    }else{
+                        contentType=@"application/octet-stream";
+                    }
+                }
+                [request addData:data withFileName:fileName andContentType:contentType forKey:key];
+            } else{
+                [request addPostValue:value forKey:key];
+            }
+        }
+    }
+    if (!userInfo) {
+        userInfo=[NSMutableDictionary dictionary];
+    }
+    [userInfo setValue:[NSNumber numberWithInteger:requestPath] forKey:kRequestPathKey];
+    request.userInfo=userInfo;
+    
+    [self executeRequest:request needCache:needCache];
+}
+
+/**
+ * Http Post发送JSON请求,不缓存数据
+ * @param params 参数组合，params为NSDictionary或NSArray
+ * @param url 请求的url
+ * @param requestPath 请求标识
+ **/
+-(void) httpPostJSONWithParams:(id) params withUrl:(NSString*)url requestPath:(HttpRequestPath) requestPath{
+    [self httpPostJSONWithParams:params withUrl:url requestPath:requestPath needCache:NO];
+}
+
+/**
+ * Http Post发送JSON请求
+ * @param params 参数组合，params为NSDictionary或NSArray
+ * @param url 请求的url
+ * @param requestPath 请求标识
+ * @param needCache 是否缓存数据
+ **/
+-(void) httpPostJSONWithParams:(id) params withUrl:(NSString*)url requestPath:(HttpRequestPath) requestPath needCache:(BOOL) needCache{
+    if (![params isKindOfClass:[NSArray class]] && ![params isKindOfClass:[NSDictionary class]]) {
+        [self.delegate dataLoadDone:self requestPath:requestPath withCode:kPARAM_ERROR withObj:nil];
+        return;
+    }
+    ASIHTTPRequest *request = [ASIHTTPRequest requestWithURL:[NSURL URLWithString:url]];
+    [request addRequestHeader:@"Content-Type" value:@"application/json;charset=UTF-8"];
+    NSMutableDictionary *userInfo=[NSMutableDictionary dictionary];
+    [userInfo setValue:[NSNumber numberWithInteger:requestPath] forKey:kRequestPathKey];
+    request.userInfo=userInfo;
+    
+    NSString *jsonString=[ALDUtils getJSONStringFromObj:params];
+    [request appendPostData:[jsonString dataUsingEncoding:NSUTF8StringEncoding]];
+    [self executeRequest:request needCache:needCache];
+}
+
+/**
+ * 判断是否已经有数据缓存了
+ * @param url 请求url
+ **/
++(BOOL) hasCachedData:(NSString *) url{
+    ASIDownloadCache *cache=[ASIDownloadCache sharedCache];
+    ASIHTTPRequest *request = [ASIHTTPRequest requestWithURL:[NSURL URLWithString:url]];
+    return [cache isCachedDataCurrentForRequest:request];
+}
+
+-(void) stopRequest{
+    if (self.currRequest && ![self.currRequest isCancelled]) {
+        [self.currRequest cancel];
+    }
+    [_httpRequests removeObject:self];
+}
+
+/**
+ * MD5加密
+ * @param str 源文本
+ **/
++ (NSString *) MD5:(NSString*) str{
+    const char *cStr = [str UTF8String];
+    unsigned char result[16];
+    CC_MD5( cStr, strlen(cStr), result ); // This is the md5 call
+    return [NSString stringWithFormat:@"%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+            result[0], result[1], result[2], result[3],
+            result[4], result[5], result[6], result[7],
+            result[8], result[9], result[10], result[11],
+            result[12], result[13], result[14], result[15]
+            ];
+}
+
+#pragma multi data encode
+/**
+ * 组装Http的Post提交数据
+ * @param postDataType post数据类型
+ * @param params 参数列表
+ * @return 返回组装后的NSData数据对象
+ **/
++ (NSMutableData *)postBody:(HttpRequestPostDataType) postDataType params:(NSDictionary*)params
+{
+    NSMutableData *body = [NSMutableData data];
+    
+    if (postDataType == kHttpRequestPostDataTypeNormal)
+    {
+        [ALDHttpClient appendUTF8Body:body dataString:[ALDHttpClient stringFromDictionary:params]];
+    }else if (postDataType == kHttpRequestPostDataTypeMultipart){
+        NSString *bodyPrefixString = [NSString stringWithFormat:@"\r\n--%@\r\n", kWBRequestStringBoundary];
+		NSString *bodySuffixString = [NSString stringWithFormat:@"\r\n--%@--\r\n", kWBRequestStringBoundary];
+        
+        NSMutableDictionary *dataDictionary = [NSMutableDictionary dictionary];
+        
+        //        [HttpClient appendUTF8Body:body dataString:bodyPrefixString];
+        
+        for (id key in [params keyEnumerator])
+		{
+            id value=[params valueForKey:key];
+			if (([value isKindOfClass:[UIImage class]]) || ([value isKindOfClass:[NSData class]]))
+			{
+				[dataDictionary setObject:value forKey:key];
+				continue;
+			}
+			
+            [ALDHttpClient appendUTF8Body:body dataString:bodyPrefixString];
+			[ALDHttpClient appendUTF8Body:body dataString:[NSString stringWithFormat:@"Content-Disposition: form-data; name=\"%@\"\r\n\r\n%@", key, [params valueForKey:key]]];
+			
+		}
+		
+		if ([dataDictionary count] > 0)
+		{
+			for (id key in dataDictionary)
+			{
+				NSObject *dataParam = [dataDictionary valueForKey:key];
+				
+                [ALDHttpClient appendUTF8Body:body dataString:bodyPrefixString];
+				if ([dataParam isKindOfClass:[UIImage class]])
+				{
+					NSData* imageData = UIImagePNGRepresentation((UIImage *)dataParam);
+					[ALDHttpClient appendUTF8Body:body dataString:[NSString stringWithFormat:@"Content-Disposition: form-data; name=\"%@\"; filename=\"%@.png\"\r\n",key,key]];
+					[ALDHttpClient appendUTF8Body:body dataString:@"Content-Type: image/png\r\nContent-Transfer-Encoding: binary\r\n\r\n"];
+					[body appendData:imageData];
+				}else if ([dataParam isKindOfClass:[NSData class]]){
+					[ALDHttpClient appendUTF8Body:body dataString:[NSString stringWithFormat:@"Content-Disposition: form-data; name=\"%@\";filename=\"%@\"\r\n", key,key]];
+					[ALDHttpClient appendUTF8Body:body dataString:@"Content-Type: content/unknown\r\nContent-Transfer-Encoding: binary\r\n\r\n"];
+					[body appendData:(NSData*)dataParam];
+				}
+			}
+		}
+        
+        [ALDHttpClient appendUTF8Body:body dataString:bodySuffixString];
+    }
+    
+    return body;
+}
+#pragma end
+#pragma mark - WBRequest Private Methods
+
++ (NSString *)stringFromDictionary:(NSDictionary *)dict
+{
+    NSMutableArray *pairs = [NSMutableArray array];
+	for (NSString *key in [dict keyEnumerator])
+	{
+        NSString *value=[dict objectForKey_NONULL:key];
+        if ([value isKindOfClass:[NSNumber class]]) {
+            value=[NSString stringWithFormat:@"%@",value];
+        }else if (![value isKindOfClass:[NSString class]]) {
+			continue;
+		}
+		
+		[pairs addObject:[NSString stringWithFormat:@"%@=%@", key, [value stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding]]];
+	}
+	
+	return [pairs componentsJoinedByString:@"&"];
+}
+
++ (void)appendUTF8Body:(NSMutableData *)body dataString:(NSString *)dataString
+{
+    [body appendData:[dataString dataUsingEncoding:NSUTF8StringEncoding]];
+}
+
+-(void) showWaitView:(NSString *)msg{
+    if (!_waitingView) {
+        CGRect rc = CGRectMake(60, 120,200, 120);
+        _waitingView = [[WaitingView alloc] initWithFrame:rc];
+        _waitingView.activityPosition=WaitingActivityInTop;
+        _waitingView.tag = kWaitingViewTag;
+        _waitingView.showMessage = msg;
+        [_waitingView show];
+    }else {
+        _waitingView.warningView.hidden=YES;
+        _waitingView.showMessage = msg;
+        [_waitingView setNeedsDisplay];
+    }
+}
+
+-(void) removeWaitView{
+    if (_waitingView) {
+        [_waitingView hide];
+        ALDRelease(_waitingView);
+        _waitingView=nil;
+    }
+}
+
+-(void) showAlert:(NSString*) title strForMsg:(NSString*) msg withTag:(NSInteger) tag otherButtonTitles:(NSString*) btnTitle{
+    UIAlertView* alert;
+    if(btnTitle){
+        alert = [[UIAlertView alloc] initWithTitle:title message:msg delegate:nil cancelButtonTitle:ALDLocalizedString(@"Close", @"关闭") otherButtonTitles:btnTitle,nil];
+    }else{
+        alert = [[UIAlertView alloc] initWithTitle:title message:msg delegate:nil cancelButtonTitle:ALDLocalizedString(@"Close", @"关闭") otherButtonTitles:btnTitle,nil];
+    }
+    alert.tag = tag;
+    [alert show];
+    ALDRelease(alert);
+}
+
+/**
+ * 文件下载
+ * @param url 文件下载url
+ * @param progressView 下载进度条
+ * @return 结果以接口回调dataLoadDone:code withObj:obj通知请求发起者，code为状态，若成功obj为NSData数据
+ **/
+-(void) download:(NSString *) url progressDelegate:(id)progressDelegate{
+    if (!url || [url isEqualToString:@""]) {
+        if([self.delegate respondsToSelector:@selector(dataLoadDone:requestPath:withCode:withObj:)]){
+            [self.delegate dataLoadDone:self requestPath:HttpRequestPathForDownload withCode:kPARAM_ERROR withObj:nil];
+        }
+        return;
+    }
+    ASIHTTPRequest *request = [ASIHTTPRequest requestWithURL:[NSURL URLWithString:url]];
+    [self addDefaultHeader:request];
+    NSMutableDictionary *userInfo=[NSMutableDictionary dictionary];
+    [userInfo setValue:[NSNumber numberWithInt:HttpRequestPathForDownload] forKey:kRequestPathKey];
+    request.userInfo=userInfo;
+    [request setShouldAttemptPersistentConnection:NO]; //设置是否重用链接
+    [request setTimeOutSeconds:20]; //设置超时时间，单位秒
+    [request setNumberOfTimesToRetryOnTimeout:0]; //设置请求超时时，设置重试的次数
+    [request setDelegate:self];
+    [request setShouldContinueWhenAppEntersBackground:YES];  //当应用后台运行时仍然请求数据
+    [request setDownloadCache:[ASIDownloadCache sharedCache]];
+    [request setSecondsToCache:60*60*24*30]; // 缓存30 天
+    [request setCacheStoragePolicy:ASICachePermanentlyCacheStoragePolicy];
+    [request setCachePolicy:ASIAskServerIfModifiedWhenStaleCachePolicy|ASIFallbackToCacheIfLoadFailsCachePolicy]; //优先使用缓存
+    if (progressDelegate) {
+        [request setDownloadProgressDelegate:progressDelegate]; //设置进度状态显示
+        [request setShowAccurateProgress:YES];
+        [networkQueue setShowAccurateProgress:YES];
+    }
+    [networkQueue addOperation:request];
+}
+
+/**
+ * 获取html内容
+ * @param url 请求页面数据url
+ * @return 结果以接口回调dataLoadDone:code withObj:obj通知请求发起者，code为状态，若成功obj为html数据
+ **/
+-(void) viewHtmlInfo:(NSString *)url{
+    if (!url || [url isEqualToString:@""]) {
+        if([self.delegate respondsToSelector:@selector(dataLoadDone:requestPath:withCode:withObj:)]){
+            [self.delegate dataLoadDone:self requestPath:HttpRequestPathForHtmlInfo withCode:kPARAM_ERROR withObj:nil];
+        }
+        return;
+    }
+    ASIHTTPRequest *request = [ASIHTTPRequest requestWithURL:[NSURL URLWithString:url]];
+    NSMutableDictionary *userInfo=[NSMutableDictionary dictionary];
+    [userInfo setValue:[NSNumber numberWithInt:HttpRequestPathForHtmlInfo] forKey:kRequestPathKey];
+    request.userInfo=userInfo;
+    
+    [self executeRequest:request needCache:YES];
+}
+
+-(void) removeRequest{
+    [_httpRequests removeObject:self];
+}
+
+/**
+ * 请求任务开始回调接口 子类需要特殊处理可以重新该方法
+ * @param request
+ * @return
+ **/
+- (void)requestStarted:(ASIHTTPRequest *)request{
+    [self onRequestStart:request];
+}
+
+/**
+ * 请求成功完成回调接口 子类需要重写该方法
+ * @param request
+ **/
+- (void)requestFinished:(ASIHTTPRequest *)request{
+    if (request.responseStatusCode!=200 && ![request didUseCachedResponse]) {
+        [self requestFailed:request];
+        return;
+    }
+    ALDResult *result=[self onRequestDone:request isSuccessed:YES];
+    [self removeWaitView];
+    
+    NSDictionary *userInfo=request.userInfo;
+    int requestPath=[[userInfo objectForKey_NONULL:kRequestPathKey] intValue];
+    if (result.isNeedLogin) {
+        if (self.delegate && [self.delegate respondsToSelector:@selector(requestNeedLogin:requestPath:withCode:)]) {
+            [self.delegate requestNeedLogin:self requestPath:requestPath withCode:result.code];
+        }
+    }else{
+        if([self.delegate respondsToSelector:@selector(dataLoadDone:requestPath:withCode:withObj:)]){
+            [self.delegate dataLoadDone:self requestPath:requestPath withCode:result.code withObj:result];
+        }
+    }
+    
+    [self removeRequest];
+}
+
+/**
+ * 请求失败回调接口 子类如需特殊处理可以重新该方法
+ * @param request
+ * @return
+ **/
+- (void)requestFailed:(ASIHTTPRequest *)request{
+    ALDResult *result=[self onRequestDone:request isSuccessed:NO];
+    [self removeWaitView];
+    if([self.delegate respondsToSelector:@selector(dataLoadDone:requestPath:withCode:withObj:)]){
+        NSDictionary *userInfo=request.userInfo;
+        int requestPath=[[userInfo objectForKey_NONULL:kRequestPathKey] intValue];
+        [self.delegate dataLoadDone:self requestPath:requestPath withCode:result.code withObj:result];
+    }
+    [self removeRequest];
+}
+
+/**
+ * 网络请求开始调用，子类可以重写该方法做些网络请求的准备工作
+ *
+ **/
+-(void) onRequestStart:(ASIHTTPRequest *)request{
+    NSLog(@"request url:%@",request.url.absoluteString);
+    if([self.delegate respondsToSelector:@selector(dataStartLoad:requestPath:)]){
+        NSDictionary *userInfo=request.userInfo;
+        int requestPath=[[userInfo objectForKey_NONULL:kRequestPathKey] intValue];
+        [self.delegate dataStartLoad:self requestPath:requestPath];
+    }else {
+        [self showWaitView:ALDLocalizedString(@"loadingTips", @"加载中，请稍后...")];
+    }
+}
+
+/**
+ * 网络请求完成时调用，子类可以重写该方法对网络请求结果进行处理
+ * @param isSuccess 是否成功，YES：成功，NO：失败
+ **/
+-(ALDResult*) onRequestDone:(ASIHTTPRequest *)request isSuccessed:(BOOL) isSuccess{
+    if (isSuccess) {
+        ALDResult *result=[[ALDResult alloc] init];
+        if([self.delegate respondsToSelector:@selector(dataLoadDone:requestPath:withCode:withObj:)]){
+            NSDictionary *userInfo=request.userInfo;
+            int requestPath=[[userInfo objectForKey_NONULL:kRequestPathKey] intValue];
+            if (requestPath==HttpRequestPathForDownload) { //数据下载
+                NSString *dataPath =[[request downloadCache] pathToCachedResponseDataForURL:request.url];
+                result.obj=dataPath;
+                result.code=KOK;
+            }else if(requestPath==HttpRequestPathForHtmlInfo){
+                NSString *responseString = [request responseString];
+                result.code=KOK;
+                result.obj=responseString;
+            }
+            return ALDReturnAutoreleased(result);
+        }else{
+            result.code=KOK;
+        }
+        return result;
+    }else{
+        return [self onRequestFaild:request];
+    }
+}
+
+-(ALDResult*) onRequestFaild:(ASIHTTPRequest*) request{
+    NSInteger errorCode=0;
+    int statusCode=request.responseStatusCode;
+    NSError *error=request.error;
+    if (error) {
+        errorCode=error.code;
+        NSDictionary *errorInfo=error.userInfo;
+        if (errorInfo && [errorInfo isKindOfClass:[NSDictionary class]]) {
+            NSString *descrip=[errorInfo objectForKey_NONULL:NSLocalizedDescriptionKey];
+            NSRange range=[descrip rangeOfString:@"timed out"];
+            if (range.location!=NSNotFound) {
+                errorCode=kNET_TIMEOUT;
+            }
+        }
+        if (errorCode==KOK) {
+            errorCode=kNET_ERROR;
+        }
+        NSLog(@"request error:%@",error);
+    } else if (![NetworkTest connectedToNetwork]) {
+        errorCode=kNET_ERROR;
+    } else {
+        errorCode=statusCode;
+    }
+    NSLog(@"request failed url:%@ ,responseStatusCode:%d",request.url.absoluteString,request.responseStatusCode);
+    //    NSLog(@"request headers:%@",request.requestHeaders);
+    if (errorCode==kNET_ERROR || errorCode==kNET_TIMEOUT) {
+        if (self.needTipsNetError) {
+            NSString *title=ALDLocalizedString(@"msgTitle", @"温馨提示");
+            NSString *tips=ALDLocalizedString(@"netErrorTips", @"你的网络很不给力，请检查是否已连接。");
+            [self showAlert:title strForMsg:tips withTag:111 otherButtonTitles:nil];
+        }
+    }
+    ALDResult *result=[[ALDResult alloc] init];
+    result.code=errorCode;
+    result.errorMsg=@"请求失败，网络异常！";
+    return ALDReturnAutoreleased(result);
+}
+
+
+
+- (void)dealloc
+{
+//    NSLog(@"self:%@  ALDHttpClient dealloced!",self);
+    [self removeWaitView];
+    if (_waitingView) {
+        ALDRelease(_waitingView);
+    }
+    self.delegate=nil;
+    self.currRequest=nil;
+    
+#if ! __has_feature(objc_arc)
+    [super dealloc];
+#endif
+}
+
+@end

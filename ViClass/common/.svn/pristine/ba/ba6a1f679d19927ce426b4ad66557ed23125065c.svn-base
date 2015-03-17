@@ -1,0 +1,159 @@
+//
+//  ALDHttpClient.h
+//  OpenApi
+//
+//  Created by yulong chen on 13-1-17.
+//  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import "ASIHTTPRequestDelegate.h"
+#import "WaitingView.h"
+
+#ifndef KOK
+//以下是一些数据请求错误码的定义
+#define kDATA_ERROR -500 //返回数据格式错误
+#define kNET_ERROR -400  //网络异常
+#define kSTORE_ERROR -300 //数据存储错误
+#define kNET_TIMEOUT -100 //网络超时
+#define kHOST_ERROR -3  //主机异常
+#define kPARAM_ERROR -2 //参数错误
+#define kAPPID_ERROR -1 //appid非法或分配失败
+#define kNO_RESULT 0 //请求结果为空
+#define KOK 1 //请求OK
+#define kNO_UPDATE 304 //没有数据更新
+#define kERROR_REQUEST 400 //其他任何非法请求
+#define kNOT_AUTHORIZED 401 //请求未授权
+
+#endif
+
+typedef enum {
+    ALDHttpRequestPathForAppid, //应用初始化
+    ALDHttpRequestPathForOpenApiLogin, //微博绑定提交请求
+    ALDHttpRequestPathForLogin, //用户登录或手机验证
+    ALDHttpRequestPathForUpLatlng, //上传经纬度
+    ALDHttpRequestPathForVerifyPhone, //广告数据请求
+    ALDHttpRequestPathForSendChat, //发送聊天
+    ALDHttpRequestPathForCheckChats, //检查聊天
+    ALDHttpRequestPathForNearbyUser, //附近的人
+} ALDHttpRequestPath;
+
+@protocol ALDDataLoadStateDelegate <NSObject>
+
+@optional
+/*
+ * 数据开始加载状态通知
+ */
+-(void) aldDataStartLoad:(ALDHttpRequestPath) requestPath;
+
+/**
+ * 数据加载状态通知
+ * @param code 请求结果状态,1:成功，其他
+ * @param object 加载完成回调后返回的数据对象
+ **/
+-(void) aldDataLoadDone:(ALDHttpRequestPath) requestPath withCode:(int) code withObj:(id) object;
+
+@end
+
+@interface OpenApiHttpClient : NSObject<ASIHTTPRequestDelegate>{
+    WaitingView *_waitingView;
+    NSString *_serverUrl;
+}
+@property(nonatomic,retain) NSString *serverUrl;
+@property(nonatomic,assign) BOOL needTipsNetError; //是否需要提醒网络未连接状态
+@property(nonatomic,retain) id<ALDDataLoadStateDelegate> delegate;
+@property(nonatomic,retain) UIView *rootView;
+
+//初始化
+-(id) initWithDelegate:(id<ALDDataLoadStateDelegate>) delegate;
+
++(id) httpClient;
+
++(id) httpClientWithDelegate:(id<ALDDataLoadStateDelegate>) delegate;
+
+/** 
+ * 释放网络请求
+ */
++(void) releaseNetworkQueue;
+
+/**
+ * 申请appid
+ * @return 结果以接口回调aldDataLoadDone:code withObj:obj通知请求发起者，code为状态，若成功obj为appid
+ */
+-(void)registAppId:(NSString*)appSn;
+
+/**
+ * 上传经纬度信息
+ * @param appid 应用初始化申请的appid
+ * @param appSn 应用标识
+ * @param lat 纬度
+ * @param lng 经度
+ * @return 结果以接口回调aldDataLoadDone:code withObj:obj通知请求发起者，code为状态
+ **/
+-(void) uploadLatlng:(NSString *)appid appSn:(NSString*)appSn lat:(NSString*)lat lng:(NSString*) lng;
+
+/**
+ * 开放平台登录
+ * @param appid 应用程序初始化时，服务端分配给应用程序的id
+ * @param appSn 应用标识
+ * @param openUid 开发平台的用户id
+ * @param type 1：新浪微博 2：腾讯微博 3：支付宝 4：qq
+ * @param token 开放平台授权令牌 所有的开发平台都有
+ * @param openKey 开放平台授权key
+ * @return 结果以接口回调aldDataLoadDone:code withObj:obj通知请求发起者，code为状态，result.obj为用户uid
+ **/
+-(void) loginWithAppid:(NSString*)appid appSn:(NSString*)appSn openUid:(NSString*)openUid type:(int)type token:(NSString*)token openKey:(NSString*) openKey;
+
+/**
+ * 手机登录时，请求后台发送验证码
+ * @param appid 应用程序初始化时，服务端分配给应用程序的id
+ * @param appSn 应用标识
+ * @param userName 手机号或用户名
+ * @param pwd 密码或手机收到的验证码
+ * @return @return 结果以接口回调aldDataLoadDone:code withObj:obj通知请求发起者，code为状态，result.obj为用户uid
+ **/
+-(void) loginWithAppid:(NSString*)appid appSn:(NSString*)appSn userName:(NSString*)userName pwd:(NSString*) pwd;
+
+/**
+ * 用户登录时或输入验证码进行验证
+ * @param appid 应用程序初始化时，服务端分配给应用程序的id
+ * @param appSn 应用标识
+ * @param phone 手机号
+ * @return 结果以接口回调aldDataLoadDone:code withObj:obj通知请求发起者，code为状态
+ **/
+-(void) verifyPhone:(NSString*)appid appSn:(NSString*)appSn phone:(NSString*)phone;
+
+/**
+ * 发送群聊
+ * @param appid 应用程序初始化时，服务端分配给应用程序的id
+ * @param appSn 应用标识
+ * @param content 发布的内容
+ * @return 结果以接口回调aldDataLoadDone:code withObj:obj通知请求发起者，code为状态
+ **/
+-(void) sendChat:(NSString*)appid appSn:(NSString*)appSn content:(NSString*) content;
+
+/**
+ * 获取群聊信息,可以使用增量更新的方式
+ * @param appid 应用程序初始化时，服务端分配给应用程序的id
+ * @param appSn 应用标识
+ * @param ltId 取小于该id的聊天内容，分页用，刷新时不需要
+ * @param gtId 取大于该id的聊天内容，刷新数据时用
+ * @param pageCount 每页条数，默认20条
+ * @return 结果以接口回调aldDataLoadDone:code withObj:obj通知请求发起者，code为状态，result.obj为会话列表
+ **/
+-(void) checkChats:(NSString*)appid appSn:(NSString*)appSn ltId:(long) ltId gtId:(long)gtId pageCount:(int) pageCount;
+
+/**
+ * 获取附件的人
+ * @param appid 应用程序初始化时，服务端分配给应用程序的id
+ * @param appSn 应用标识
+ * @param lat 纬度
+ * @param lng 经度
+ * @param radius 半径
+ * @param page 页码 默认第1页
+ * @param pageCount 每页条数，默认20条
+ * @return 结果以接口回调aldDataLoadDone:code withObj:obj通知请求发起者，code为状态，result.obj为用户列表
+ **/
+-(void) nearbyUser:(NSString*)appid appSn:(NSString*)appSn lat:(NSString*)lat lng:(NSString*)lng radius:(int)radius page:(int)page pageCount:(int) pageCount;
+
+@end

@@ -1,0 +1,96 @@
+//
+//  DetailsViewController.m
+//  WeTalk
+//
+//  Created by x-Alidao on 14/12/4.
+//  Copyright (c) 2014年 skk. All rights reserved.
+//
+
+#import "DetailsViewController.h"
+
+@interface DetailsViewController () {
+    UIView *bottmLine;
+}
+
+@end
+
+@implementation DetailsViewController
+@synthesize keyScrollView   = _keyScrollView;
+@synthesize scrollView      = _scrollView;
+//@synthesize talbleView      = _talbleView;
+@synthesize commentData     = _commentData;
+@synthesize commentTextView = _commentTextView;
+
+- (void)dealloc
+{
+    self.keyScrollView   = nil;
+    self.scrollView      = nil;
+//    self.talbleView      = nil;
+    self.commentData     = nil;
+    self.commentTextView = nil;
+    
+#if ! __has_feature(objc_arc)
+[super dealloc];
+#endif
+}
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    
+    CGRect frame       = self.view.frame;
+    CGFloat viewWidth  = CGRectGetWidth(frame);
+    CGFloat viewHeight = CGRectGetHeight(frame);
+    
+    //keyScrollView
+//    self.keyScrollView = [[TPKeyboardAvoidingScrollView alloc] initWithFrame:frame];
+//    [self.view addSubview:self.keyScrollView];
+//    
+//    //键盘工具栏
+//    UIToolbar * topView = [[UIToolbar alloc]initWithFrame:CGRectMake(0, 0, CGRectGetWidth(self.view.bounds), 30)];
+//    [topView setBarStyle:UIBarStyleBlackTranslucent];
+//    UIBarButtonItem * btnSpace = [[UIBarButtonItem alloc]initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:self action:nil];
+//    UIBarButtonItem * doneButton = [[UIBarButtonItem alloc]initWithTitle:ALDLocalizedString(@"Cancel keyboard", @"关闭键盘") style:UIBarButtonItemStyleDone target:self action:@selector(hiddenKeyBorad)];
+//    NSArray *buttonsArray = [NSArray arrayWithObjects:btnSpace,doneButton,nil];
+//    
+//    [topView setItems:buttonsArray];
+//    
+//    //scrollView
+//    _scrollView=[[UIScrollView alloc] initWithFrame:CGRectMake(0, 0, viewWidth, viewHeight - 49.0f)];
+//    _scrollView.showsHorizontalScrollIndicator = NO;
+//    _scrollView.showsVerticalScrollIndicator   = YES;
+//    _scrollView.autoresizingMask               = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
+//    _scrollView.delegate                       = self;
+    
+    //commentTextView
+    
+}
+
+-(UILabel *)createLabel:(CGRect )frame textColor:(UIColor *)textColor textFont:(UIFont *)textFont
+{
+    UILabel *label=[[UILabel alloc] initWithFrame:frame];
+    label.textColor=textColor;
+    label.font=textFont;
+    label.backgroundColor=[UIColor clearColor];
+    
+    return label;
+}
+
+-(UIView *)createLine:(CGRect)frame
+{
+    UIView *line=[[UIView alloc] initWithFrame:frame];
+    line.backgroundColor=kLineColor;
+    
+    return line;
+}
+
+//-(void) hiddenKeyBorad{
+//    [_commentTextView resignFirstResponder];
+//}
+
+- (void)didReceiveMemoryWarning {
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+
+@end

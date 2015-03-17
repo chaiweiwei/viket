@@ -1,0 +1,42 @@
+//
+//  OpenApiLocalizedString.m
+//  GWCClub
+//
+//  Created by yulong chen on 13-3-14.
+//  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+//
+
+#import "OpenApiLocalizedString.h"
+
+NSString * OpenApiLocalizedStringFormat(NSString *key,NSString *defValue);
+
+// Handle localized strings stored in a bundle
+
+NSString * OpenApiLocalizedStringFormat(NSString *key,NSString *defValue)
+{
+    static NSBundle *openBundle = nil;
+    if (openBundle == nil) {
+        NSBundle *openapiBundle = [NSBundle bundleWithPath:[[NSBundle mainBundle] pathForResource:@"openapi" ofType:@"bundle"]];
+        openBundle = [NSBundle bundleWithPath:[openapiBundle pathForResource:[[NSLocale preferredLanguages] objectAtIndex:0] ofType:@"lproj"]];
+        if (openBundle == nil) {
+            // If there is no localized strings for default language, select english language
+            openBundle = [NSBundle bundleWithPath:[openapiBundle pathForResource:@"en" ofType:@"lproj"]];
+        }
+    }
+    if (defValue==nil) {
+        defValue=key;
+    }
+    return [openBundle localizedStringForKey:key value:defValue table:nil];
+}
+
+NSString* OpenApiLocalizedString(NSString *defValue,NSString *key, ...) 
+{
+	// Localize the format
+	NSString *localizedStringFormat = OpenApiLocalizedStringFormat(key,defValue);
+	
+	va_list args;
+    va_start(args, key);
+    NSString *string = [[[NSString alloc] initWithFormat:localizedStringFormat arguments:args] autorelease];
+    va_end(args);
+	return string;
+}

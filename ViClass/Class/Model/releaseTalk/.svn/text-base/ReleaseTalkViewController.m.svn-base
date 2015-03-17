@@ -1,0 +1,100 @@
+//
+//  ReleaseTalkViewController.m
+//  WeTalk
+//
+//  Created by x-Alidao on 14/12/4.
+//  Copyright (c) 2014年 skk. All rights reserved.
+//
+
+#import "ReleaseTalkViewController.h"
+#import "ALDButton.h"
+
+@interface ReleaseTalkViewController ()
+
+@end
+
+@implementation ReleaseTalkViewController
+
+- (void)dealloc
+{
+    
+    
+#if ! __has_feature(objc_arc)
+    [super dealloc];
+#endif
+}
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.view.backgroundColor = RGBCOLOR(246,246,246);
+    
+    CGRect frame               = self.view.frame;
+    CGFloat viewWidth          = CGRectGetWidth(frame);
+    CGFloat viewHeight         = CGRectGetHeight(frame);
+    
+    if (self.toController == 1) {
+        
+    }else {
+        //自定义导航栏
+        UINavigationBar *bar=[[UINavigationBar alloc] initWithFrame:CGRectMake(0, 0, viewWidth, 64)];
+        
+        UINavigationItem *item=[[UINavigationItem alloc] initWithTitle:@"发布说说"];
+        
+        [bar pushNavigationItem:item animated:YES]; //把导航条推入到导航栏
+        
+        [self.view addSubview:bar]; //添加导航条视图
+        
+        //返回按钮
+//        UIBarButtonItem *left=[[UIBarButtonItem alloc] initWithTitle:@"取消" style:UIBarButtonItemStyleDone target:self action:@selector(cancelBtn)];
+//        [item setLeftBarButtonItem:left animated:YES];
+        ALDButton *btn        = [ALDButton buttonWithType:UIButtonTypeCustom];
+        btn.frame             = CGRectMake(0, 0, 35, 40);
+        btn.tag     =  0x010;
+        btn.backgroundColor   = [UIColor clearColor];
+        [btn setTitle:@"取消" forState:UIControlStateNormal];
+        [btn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+        btn.titleLabel.font = k32pxFont;
+        btn.selectBgColor = [UIColor clearColor];
+        [btn addTarget:self action:@selector(clickButton:) forControlEvents:UIControlEventTouchUpInside];
+        UIBarButtonItem *leftBtn = [[UIBarButtonItem alloc] initWithCustomView:btn];
+        [item setLeftBarButtonItem:leftBtn animated:YES];
+        
+        //提交按钮
+        btn        = [ALDButton buttonWithType:UIButtonTypeCustom];
+        btn.frame             = CGRectMake(0, 0, 35, 40);
+        btn.tag = 0x011;
+        btn.backgroundColor   = [UIColor clearColor];
+        [btn setTitle:@"提交" forState:UIControlStateNormal];
+        [btn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+        btn.titleLabel.font = k32pxFont;
+        btn.selectBgColor = [UIColor clearColor];
+        [btn addTarget:self action:@selector(clickButton:) forControlEvents:UIControlEventTouchUpInside];
+        UIBarButtonItem *rightBtn = [[UIBarButtonItem alloc] initWithCustomView:btn];
+        [item setRightBarButtonItem:rightBtn animated:YES];
+    }
+}
+
+- (void)clickButton:(ALDButton *)sender {
+    switch (sender.tag) {
+        case 0x010: { //返回按钮
+            [self dismissViewControllerAnimated:YES completion:^{}];
+        }
+            break;
+            
+        case 0x011: { //提交按钮
+            
+        }
+            break;
+            
+        default:
+            break;
+    }
+}
+
+- (void)didReceiveMemoryWarning {
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+
+@end

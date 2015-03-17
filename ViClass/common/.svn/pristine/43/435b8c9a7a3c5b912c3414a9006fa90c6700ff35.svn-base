@@ -1,0 +1,34 @@
+//
+//  SendChatViewController.h
+//  OpenApi
+//
+//  Created by yulong chen on 13-1-20.
+//  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import "OpenApiHttpClient.h"
+#import "MyWBEngineDelegate.h"
+#import "BaseViewController.h"
+
+@class SendChatViewController;
+
+@protocol SendChatDelegate <NSObject>
+
+@optional
+-(void) sendChatView:(SendChatViewController*) view didSendText:(NSString*) text;
+
+@end
+
+@interface SendChatViewController : BaseViewController<UITextViewDelegate,ALDDataLoadStateDelegate,OpenApiDelegate>{
+    UITextView *_textView; 
+    UISwitch *_switchView;
+    
+    UINavigationBar *_navBar; //No Retain
+}
+
+@property (retain,nonatomic) NSString *appSn;
+@property (retain,nonatomic) NSString *serverUrl;
+@property (nonatomic) BOOL isMode;
+@property (assign,nonatomic) id<SendChatDelegate> delegate;
+@end

@@ -1,0 +1,420 @@
+//
+//  WBEngine.m
+//  SinaWeiBoSDK
+//  Based on OAuth 2.0
+//
+//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+//  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+//  OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+//  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+//  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+//  WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+//  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+//  OTHER DEALINGS IN THE SOFTWARE.
+//
+//  Copyright 2011 Sina. All rights reserved.
+//
+
+#import "WBEngine.h"
+#import "SFHFKeychainUtils.h"
+#import "WBSDKGlobal.h"
+#import "WBUtil.h"
+#import "TipsUtils.h"
+
+#define kWBURLSchemePrefix              @"WB_"
+
+#define kWBKeychainServiceNameSuffix    @"_WeiBoServiceName"
+#define kWBKeychainUserID               @"WeiBoUserID"
+#define kWBKeychainScreenName           @"WeiboScreenName"
+#define kWBKeychainAccessToken          @"WeiBoAccessToken"
+#define kWBKeychainExpireTime           @"WeiBoExpireTime"
+
+#define kWBKeychainOpenKey           @"WeiBoOpenKey"
+
+@interface WBEngine (Private)
+
+- (NSString *)urlSchemeString;
+
+- (void)saveAuthorizeDataToKeychain;
+
+- (void)deleteAuthorizeDataInKeychain;
+@end
+
+@implementation WBEngine
+
+@synthesize appKey;
+@synthesize appSecret;
+@synthesize userID;
+@synthesize screenName;
+@synthesize accessToken;
+@synthesize expireTime;
+@synthesize redirectURI;
+@synthesize isUserExclusive;
+@synthesize request;
+@synthesize authorize;
+@synthesize delegate;
+@synthesize rootViewController;
+@synthesize requestPath=_requestPath;
+@synthesize weiboType=_weiboType;
+@synthesize openKey=_openKey;
+@synthesize keychainPrefix=_keychainPrefix;
+@synthesize isChangeLogin=_isChangeLogin;
+@synthesize hasBackBtn=_hasBackBtn;
+@synthesize isMode=_isMode;
+
+#pragma mark - WBEngine Life Circle
+//不同的微博需要重载该方法，并设置keychainPrefix和weiboType的值
+-(id) init{
+    if (self=[super init]) {
+        self.keychainPrefix=@"weibo";
+        isUserExclusive = NO;
+    }
+    return self;
+}
+
+- (id)initWithAppKey:(NSString *)theAppKey appSecret:(NSString *)theAppSecret
+{
+    if (self = [self init])
+    {
+        self.appKey = theAppKey;
+        self.appSecret = theAppSecret;
+        
+        [self readAuthorizeDataFromKeychain];
+    }
+    
+    return self;
+}
+
+- (void)dealloc
+{
+//    NSLog(@"WBEngine dealloc:%@ retainCount:%d",self,[self retainCount]);
+    [appKey release], appKey = nil;
+    [appSecret release], appSecret = nil;
+    
+    [userID release], userID = nil;
+    [screenName release], screenName = nil;
+    [accessToken release], accessToken = nil;
+    [_openKey release]; _openKey=nil;
+    
+    [redirectURI release], redirectURI = nil;
+    
+    [request disconnect];
+    [request release], request = nil;
+    
+    [authorize release], authorize = nil;
+    
+    self.delegate=nil;
+    
+    [super dealloc];
+}
+
+#pragma mark - WBEngine Private Methods
+
+- (NSString *)urlSchemeString
+{
+    return [NSString stringWithFormat:@"%@%@%@", kWBURLSchemePrefix,_keychainPrefix, appKey];
+}
+
+- (void)saveAuthorizeDataToKeychain
+{
+    NSString *serviceName = [[self urlSchemeString] stringByAppendingString:kWBKeychainServiceNameSuffix];
+    [SFHFKeychainUtils storeUsername:[_keychainPrefix stringByAppendingString:kWBKeychainUserID] andPassword:userID forServiceName:serviceName updateExisting:YES error:nil];
+	[SFHFKeychainUtils storeUsername:[_keychainPrefix stringByAppendingString:kWBKeychainAccessToken] andPassword:accessToken forServiceName:serviceName updateExisting:YES error:nil];
+	[SFHFKeychainUtils storeUsername:[_keychainPrefix stringByAppendingString:kWBKeychainExpireTime] andPassword:[NSString stringWithFormat:@"%lf", expireTime] forServiceName:serviceName updateExisting:YES error:nil];
+    
+    if (!_openKey || ![_openKey isKindOfClass:[NSString class]]) {
+        _openKey=@"";
+    }
+    
+    [SFHFKeychainUtils storeUsername:[_keychainPrefix stringByAppendingString:kWBKeychainOpenKey] andPassword:_openKey forServiceName:serviceName updateExisting:YES error:nil];
+}
+
+- (void) saveScreenName:(NSString *) scName{
+    if (scName==nil) {
+        scName=@"";
+    }
+    self.screenName=scName;
+    NSString *serviceName = [[self urlSchemeString] stringByAppendingString:kWBKeychainServiceNameSuffix];
+    [SFHFKeychainUtils storeUsername:[_keychainPrefix stringByAppendingString:kWBKeychainScreenName] andPassword:scName forServiceName:serviceName updateExisting:YES error:nil];
+    if (_weiboType==TypeWyWeibo || _weiboType==TypeLinkedIn) {
+        [SFHFKeychainUtils storeUsername:[_keychainPrefix stringByAppendingString:kWBKeychainUserID] andPassword:userID forServiceName:serviceName updateExisting:YES error:nil];
+    }
+}
+
+- (void)readAuthorizeDataFromKeychain
+{
+    NSString *serviceName = [[self urlSchemeString] stringByAppendingString:kWBKeychainServiceNameSuffix];
+    self.userID = [SFHFKeychainUtils getPasswordForUsername:[_keychainPrefix stringByAppendingString:kWBKeychainUserID] andServiceName:serviceName error:nil];
+    self.screenName = [SFHFKeychainUtils getPasswordForUsername:[_keychainPrefix stringByAppendingString:kWBKeychainScreenName] andServiceName:serviceName error:nil];
+    self.accessToken = [SFHFKeychainUtils getPasswordForUsername:[_keychainPrefix stringByAppendingString:kWBKeychainAccessToken] andServiceName:serviceName error:nil];
+    self.expireTime = [[SFHFKeychainUtils getPasswordForUsername:[_keychainPrefix stringByAppendingString:kWBKeychainExpireTime] andServiceName:serviceName error:nil] doubleValue];
+    
+    self.openKey = [SFHFKeychainUtils getPasswordForUsername:[_keychainPrefix stringByAppendingString:kWBKeychainOpenKey] andServiceName:serviceName error:nil];
+    
+    //NSLog(@"userID:%@,screenName:%@,accessToken:%@,expireTime:%f,openKey:%@",userID,screenName,accessToken,expireTime,_openKey);
+}
+
+- (void)deleteAuthorizeDataInKeychain
+{
+    self.userID = nil;
+    self.screenName=nil;
+    self.accessToken = nil;
+    self.expireTime = 0;
+    self.openKey=nil;
+    
+    NSString *serviceName = [[self urlSchemeString] stringByAppendingString:kWBKeychainServiceNameSuffix];
+    [SFHFKeychainUtils deleteItemForUsername:[_keychainPrefix stringByAppendingString:kWBKeychainUserID] andServiceName:serviceName error:nil];
+    [SFHFKeychainUtils deleteItemForUsername:[_keychainPrefix stringByAppendingString:kWBKeychainScreenName] andServiceName:serviceName error:nil];
+	[SFHFKeychainUtils deleteItemForUsername:[_keychainPrefix stringByAppendingString:kWBKeychainAccessToken] andServiceName:serviceName error:nil];
+	[SFHFKeychainUtils deleteItemForUsername:[_keychainPrefix stringByAppendingString:kWBKeychainExpireTime] andServiceName:serviceName error:nil];
+    
+    [SFHFKeychainUtils deleteItemForUsername:[_keychainPrefix stringByAppendingString:kWBKeychainOpenKey] andServiceName:serviceName error:nil];
+}
+
+#pragma mark - WBEngine Public Methods
+
+#pragma mark Authorization
+
+- (void)logIn
+{
+    WBAuthorize *auth = [[WBAuthorize alloc] initWithAppKey:appKey appSecret:appSecret];
+    auth.weiboType=self.weiboType;
+    auth.isChangeLogin=_isChangeLogin;
+    auth.hasBackBtn=self.hasBackBtn;
+    auth.isMode=self.isMode;
+    [auth setRootViewController:rootViewController];
+    [auth setDelegate:self];
+    self.authorize = auth;
+    [auth release];
+    
+    if ([redirectURI length] > 0){
+        [authorize setRedirectURI:redirectURI];
+    }else{
+        [authorize setRedirectURI:@"http://"];
+    }
+    _requestPath=WeiboRequestPathForOAuth;
+    
+    [authorize startAuthorize];
+}
+
+- (void)logInUsingUserID:(NSString *)theUserID password:(NSString *)thePassword
+{
+    self.userID = theUserID;
+    
+    if ([self isLoggedIn])
+    {
+        if ([delegate respondsToSelector:@selector(engineAlreadyLoggedIn:)])
+        {
+            [delegate engineAlreadyLoggedIn:self];
+        }
+        if (isUserExclusive)
+        {
+            return;
+        }
+    }
+    
+    WBAuthorize *auth = [[WBAuthorize alloc] initWithAppKey:appKey appSecret:appSecret];
+    [auth setRootViewController:rootViewController];
+    [auth setDelegate:self];
+    self.authorize = auth;
+    [auth release];
+    
+    if ([redirectURI length] > 0){
+        [authorize setRedirectURI:redirectURI];
+    }else{
+        [authorize setRedirectURI:@"http://"];
+    }
+    
+    [authorize startAuthorizeUsingUserID:theUserID password:thePassword];
+}
+
+- (void)logOut
+{
+    [self deleteAuthorizeDataInKeychain];
+    
+    if ([delegate respondsToSelector:@selector(engineDidLogOut:)])
+    {
+        [delegate engineDidLogOut:self];
+    }
+}
+
+- (BOOL)isLoggedIn
+{
+    //    return userID && accessToken && refreshToken;
+    if (_weiboType==TypeWyWeibo || _weiboType==TypeLinkedIn) {
+        return accessToken && (expireTime > 0);
+    }else {
+        return userID && accessToken && (expireTime > 0);
+    }
+}
+
+- (BOOL)isAuthorizeExpired
+{
+    if ([[NSDate date] timeIntervalSince1970] > expireTime)
+    {
+        // force to log out
+        [self deleteAuthorizeDataInKeychain];
+        return YES;
+    }
+    return NO;
+}
+
+#pragma mark Request
+
+- (void)loadRequestWithMethodName:(NSString *)methodName
+                       httpMethod:(NSString *)httpMethod
+                           params:(NSDictionary *)params
+                     postDataType:(WBRequestPostDataType)postDataType
+                 httpHeaderFields:(NSDictionary *)httpHeaderFields
+{
+    // Step 1.
+    // Check if the user has been logged in.
+	if (![self isLoggedIn])
+	{
+        [TipsUtils removeWaitingView:self.rootViewController.view];
+        if ([delegate respondsToSelector:@selector(engineNotAuthorized:)])
+        {
+            [delegate engineNotAuthorized:self];
+        }
+        return;
+	}
+    
+	// Step 2.
+    // Check if the access token is expired.
+    if ([self isAuthorizeExpired])
+    {
+        [TipsUtils removeWaitingView:self.rootViewController.view];
+        if ([delegate respondsToSelector:@selector(engineAuthorizeExpired:)])
+        {
+            [delegate engineAuthorizeExpired:self];
+        }
+        return;
+    }
+    
+    [request disconnect];
+    
+    NSString *server=nil;
+    if (_weiboType==TypeTecentWeibo) {
+        server=kWBTecentAPIDomain;
+    }else if (_weiboType==TypeWyWeibo) {
+        server=kWBWyAPIDomain;
+    }else if (_weiboType==TypeLinkedIn){
+        server=kLinkedInDomain;
+    }else {
+        server=kWBSinaAPIDomain;
+    }
+    self.request = [WBRequest requestWithAccessToken:accessToken
+                                                 url:[NSString stringWithFormat:@"%@%@", server, methodName]
+                                          httpMethod:httpMethod
+                                              params:params
+                                        postDataType:postDataType
+                                    httpHeaderFields:httpHeaderFields
+                                            delegate:self];
+	
+	[request connect];
+}
+
+#pragma mark - WBAuthorizeDelegate Methods
+
+- (void)authorize:(id)authorize didSucceedWithAccessToken:(NSString *)theAccessToken userID:(NSString *)theUserID expiresIn:(NSInteger)seconds openKey:(NSString *)theOpenKey
+{
+    self.accessToken = theAccessToken;
+    self.userID = theUserID;
+    self.expireTime = [[NSDate date] timeIntervalSince1970] + seconds;
+    self.openKey=theOpenKey;
+    
+    [self saveAuthorizeDataToKeychain];
+    
+    if ([delegate respondsToSelector:@selector(engineDidLogIn:)])
+    {
+        [delegate engineDidLogIn:self];
+    }
+    self.authorize=nil;
+}
+
+- (void)authorize:(id)authorize didFailWithError:(NSError *)error
+{
+    if ([delegate respondsToSelector:@selector(engine:didFailToLogInWithError:)])
+    {
+        [delegate engine:self didFailToLogInWithError:error];
+    }
+    self.authorize=nil;
+}
+
+#pragma mark - WBRequestDelegate Methods
+
+- (void)request:(WBRequest *)request didFinishLoadingWithResult:(id)result
+{
+//    NSLog(@"result:%@",result);
+    if ([delegate respondsToSelector:@selector(engine:requestDidSucceedWithResult:)])
+    {
+        [delegate engine:self requestDidSucceedWithResult:result];
+    }
+}
+
+- (void)request:(WBRequest *)request didFailWithError:(NSError *)error
+{
+    if ([delegate respondsToSelector:@selector(engine:requestDidFailWithError:)])
+    {
+        [delegate engine:self requestDidFailWithError:error];
+    }
+}
+
+
+/**
+ * 查看用户信息
+ * @param wuid 微博用户id
+ */
+-(void) showUser:(NSString *) wuid{
+    //子类实现
+    NSLog(@"WBEngine showUser need implements in the sub class!");
+}
+
+/**
+ * 发送微博
+ * @param text 微博文本内容
+ * @param image 带图片的微博,可空
+ * @param lat 纬度
+ * @param lng 经度
+ **/
+- (void)sendWeiBoWithText:(NSString *)text image:(UIImage *)image lat:(NSString*)lat lng:(NSString*)lng{
+    //子类实现
+}
+
+/**
+ * 转发微博
+ * @param text 内容
+ * @param 转发微博的id
+ */
+- (void)repostWeiboWithText:(NSString *) text weibId:(NSString *)weiboId{
+    //子类实现
+}
+
+/**
+ * 评论微博
+ * @param text 内容
+ * @param 待评论微博的id
+ */
+-(void) commentsWeiboWithText:(NSString *)text weiboId:(NSString *)weiboId{
+    //子类实现
+}
+
+/**
+ * 关注某用户
+ * @param uid 待关注的微博用户id uid与screenName必须二选一
+ * @param screenName 微博昵称，如果uid为空，则使用此参数
+ **/
+-(void) friendshipsCreate:(NSString *) uid screenName:(NSString*)nick{
+    //子类实现
+}
+
+/**
+ * 取消关注某用户
+ * @param uid 待取消关注的微博用户id uid与screenName必须二选一
+ * @param screenName 微博昵称，如果uid为空，则使用此参数
+ **/
+-(void) friendshipsDestroy:(NSString *) uid screenName:(NSString *)nick{
+    //子类实现
+}
+
+@end

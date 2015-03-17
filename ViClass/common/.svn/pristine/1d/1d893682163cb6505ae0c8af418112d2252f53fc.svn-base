@@ -1,0 +1,396 @@
+//
+//  OpenApiUtils.m
+//  OpenApi
+//
+//  Created by yulong chen on 13-1-5.
+//  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+//
+
+#import "OpenApiUtils.h"
+#import "WBSinaEngine.h"
+#import "WBTecentEngine.h"
+#import "WBWyEngine.h"
+#import "MyWBEngineDelegate.h"
+#import "WXApi.h"
+#import "TipsUtils.h"
+#import "WeiBosendViewController.h"
+#import "OpenApiSmsPicker.h"
+#import "OpenApiLocalizedString.h"
+
+@implementation OpenApiUtils
+
+/**
+ * 判断开放平台是否已登录
+ * @param platform 开放平台类型
+ * @param appKey  开放平台应用key
+ * @param appSecret 开放平台应用key
+ * @return 如果是则返回OpenApiUserBean对象，否则返回nil
+ **/
++(OpenApiUserBean*) openApiHasLogined:(OpenApiPlatform) platform appKey:(NSString*)appKey appSecret:(NSString*)appSecret{
+    switch (platform) {
+        case OpenApiOfQQ:{ //qq登录
+            
+        }
+            break;
+        case OpenApiOfSWeibo:{ //新浪微博登录
+            WBSinaEngine *engine=[[WBSinaEngine alloc] initWithAppKey:appKey appSecret:appSecret];
+            OpenApiUserBean *user=nil;
+            if ([engine isLoggedIn] && ![engine isAuthorizeExpired]) {
+                //已经登录，获取用户信息再返回
+                user=[[[OpenApiUserBean alloc] init] autorelease];
+                user.screenName=engine.screenName;
+                user.userId=engine.userID;
+                user.accessToken=engine.accessToken;
+            }
+            [engine release];
+            return user;
+        }
+            break;
+        case OpenApiOfTWeibo:{ //腾讯微博登录
+            WBTecentEngine *engine=[[WBTecentEngine alloc] initWithAppKey:appKey appSecret:appSecret];
+            OpenApiUserBean *user=nil;
+            if ([engine isLoggedIn] && ![engine isAuthorizeExpired]) {
+                //已经登录，获取用户信息再返回
+                user=[[[OpenApiUserBean alloc] init] autorelease];
+                user.screenName=engine.screenName;
+                user.userId=engine.userID;
+                user.accessToken=engine.accessToken;
+            }
+            [engine release];
+            return user;
+        }
+            break;
+        case OpenApiOfWyWeibo:{ //网易微博登录
+            WBWyEngine *engine=[[WBWyEngine alloc] initWithAppKey:appKey appSecret:appSecret];
+            OpenApiUserBean *user=nil;
+            if ([engine isLoggedIn] && ![engine isAuthorizeExpired]) {
+                //已经登录，获取用户信息再返回
+                user=[[[OpenApiUserBean alloc] init] autorelease];
+                user.screenName=engine.screenName;
+                user.userId=engine.userID;
+                user.accessToken=engine.accessToken;
+            }
+            [engine release];
+            return user;
+        }
+            break;
+        case OpenApiOfWeixin:{ //微信登录
+            
+        }
+            break;
+        case OpenApiOfTaobao:{ //淘宝账户登录
+            
+        }
+            break;
+        default:
+            break;
+    }
+    return nil;
+}
+
+/**
+ * 使用开放平台登录
+ * @param platform 开放平台类型
+ * @param appKey 开放平台应用key
+ * @param appSecret 开放平台应用secret
+ * @param redirectUrl 开放平台登录回调地址
+ * @param delegate 开放平台登录委托
+ * @param parent 调用者界面，本函数使用modal方式跳转到授权界面
+ * @return 登录结果以委托的形式通知调用者  
+ **/
++(void) loginWithPlatform:(OpenApiPlatform) platform appKey:(NSString*)appKey appSecret:(NSString*)appSecret redirectUrl:(NSString*)redirectUrl delegate:(id<OpenApiDelegate>)delegate parent:(UIViewController*)parent{
+    switch (platform) {
+        case OpenApiOfQQ:{ //qq登录
+            
+        }
+            break;
+        case OpenApiOfSWeibo:{ //新浪微博登录
+            WBSinaEngine *engine=[[WBSinaEngine alloc] initWithAppKey:appKey appSecret:appSecret];
+            [engine setRootViewController:parent];
+            MyWBEngineDelegate *weiboDelegate=[[MyWBEngineDelegate alloc] init ];
+            weiboDelegate.delegate=delegate;
+            weiboDelegate.viewController=parent;
+            [engine setDelegate:weiboDelegate];
+            engine.isMode=YES;
+            [weiboDelegate release];
+            [engine setRedirectURI:redirectUrl];
+            [engine setIsUserExclusive:NO];
+            if ([engine isLoggedIn] && ![engine isAuthorizeExpired]) {
+                //已经登录，获取用户信息再返回
+                [TipsUtils addWaitingView:parent.view withText:OpenApiLocalizedString(@"加载中，请稍侯...",@"loading",@"")];
+                [engine showUser:engine.userID];
+            }else {
+                [engine logIn];
+            }
+            [engine release];
+        }
+            break;
+        case OpenApiOfTWeibo:{ //腾讯微博登录
+            WBTecentEngine *engine=[[WBTecentEngine alloc] initWithAppKey:appKey appSecret:appSecret];
+            [engine setRootViewController:parent];
+            MyWBEngineDelegate *weiboDelegate=[[MyWBEngineDelegate alloc] init ];
+            weiboDelegate.delegate=delegate;
+            weiboDelegate.viewController=parent;
+            [engine setDelegate:weiboDelegate];
+            engine.isMode=YES;
+            [weiboDelegate release];
+            [engine setRedirectURI:redirectUrl];
+            [engine setIsUserExclusive:NO];
+            if ([engine isLoggedIn] && ![engine isAuthorizeExpired]) {
+                //已经登录，获取用户信息再返回
+                [TipsUtils addWaitingView:parent.view withText:OpenApiLocalizedString(@"加载中，请稍侯...",@"loading",@"")];
+                [engine showUser:engine.userID];
+            }else {
+                [engine logIn];
+            }
+            [engine release];
+        }
+            break;
+        case OpenApiOfWyWeibo:{ //网易微博登录
+            WBWyEngine *engine=[[WBWyEngine alloc] initWithAppKey:appKey appSecret:appSecret];
+            [engine setRootViewController:parent];
+            MyWBEngineDelegate *weiboDelegate=[[MyWBEngineDelegate alloc] init ];
+            weiboDelegate.delegate=delegate;
+            weiboDelegate.viewController=parent;
+            engine.isMode=YES;
+            [engine setDelegate:weiboDelegate];
+            [weiboDelegate release];
+            [engine setRedirectURI:redirectUrl];
+            [engine setIsUserExclusive:NO];
+            if ([engine isLoggedIn] && ![engine isAuthorizeExpired]) {
+                //已经登录，获取用户信息再返回
+                [TipsUtils addWaitingView:parent.view withText:OpenApiLocalizedString(@"加载中，请稍侯...",@"loading",@"")];
+                [engine showUser:engine.userID];
+            }else {
+                [engine logIn];
+            }
+            [engine release];
+        }
+            break;
+        case OpenApiOfWeixin:{ //微信登录
+            
+        }
+            break;
+        case OpenApiOfTaobao:{ //淘宝账户登录
+            
+        }
+            break;
+        default:
+            break;
+    }
+}
+
+/**
+ * 使用开放平台登录
+ * @param platform 开放平台类型
+ * @param appKey 开放平台应用key
+ * @param appSecret 开放平台应用secret
+ * @param redirectUrl 开放平台登录回调地址
+ * @param delegate 开放平台登录委托
+ * @param parent 调用者界面，本函数使用modal方式跳转到授权界面
+ * @param isChange 是否切换微博
+ * @return 登录结果以委托的形式通知调用者  
+ **/
++(void) loginWithPlatform:(OpenApiPlatform) platform appKey:(NSString*)appKey appSecret:(NSString*)appSecret redirectUrl:(NSString*)redirectUrl delegate:(id<OpenApiDelegate>)delegate parent:(UIViewController*)parent isChange:(BOOL)isChange{
+    switch (platform) {
+        case OpenApiOfQQ:{ //qq登录
+            
+        }
+            break;
+        case OpenApiOfSWeibo:{ //新浪微博登录
+            WBSinaEngine *engine=[[WBSinaEngine alloc] initWithAppKey:appKey appSecret:appSecret];
+            [engine setRootViewController:parent];
+            MyWBEngineDelegate *weiboDelegate=[[MyWBEngineDelegate alloc] init ];
+            weiboDelegate.delegate=delegate;
+            weiboDelegate.viewController=parent;
+            [engine setDelegate:weiboDelegate];
+            engine.isMode=YES;
+            [weiboDelegate release];
+            [engine setRedirectURI:redirectUrl];
+            [engine setIsUserExclusive:NO];
+            if (isChange) {
+                [engine logIn];
+            }else if ([engine isLoggedIn] && ![engine isAuthorizeExpired]) {
+                //已经登录，获取用户信息再返回
+                [TipsUtils addWaitingView:parent.view withText:OpenApiLocalizedString(@"加载中，请稍侯...",@"loading",@"")];
+                [engine showUser:engine.userID];
+            }else {
+                [engine logIn];
+            }
+            [engine release];
+        }
+            break;
+        case OpenApiOfTWeibo:{ //腾讯微博登录
+            WBTecentEngine *engine=[[WBTecentEngine alloc] initWithAppKey:appKey appSecret:appSecret];
+            [engine setRootViewController:parent];
+            MyWBEngineDelegate *weiboDelegate=[[MyWBEngineDelegate alloc] init ];
+            weiboDelegate.delegate=delegate;
+            weiboDelegate.viewController=parent;
+            [engine setDelegate:weiboDelegate];
+            engine.isMode=YES;
+            [weiboDelegate release];
+            [engine setRedirectURI:redirectUrl];
+            [engine setIsUserExclusive:NO];
+            if (isChange) {
+                [engine logIn];
+            }else if ([engine isLoggedIn] && ![engine isAuthorizeExpired]) {
+                //已经登录，获取用户信息再返回
+                [TipsUtils addWaitingView:parent.view withText:OpenApiLocalizedString(@"加载中，请稍侯...",@"loading",@"")];
+                [engine showUser:engine.userID];
+            }else {
+                [engine logIn];
+            }
+            [engine release];
+        }
+            break;
+        case OpenApiOfWyWeibo:{ //网易微博登录
+            WBWyEngine *engine=[[WBWyEngine alloc] initWithAppKey:appKey appSecret:appSecret];
+            [engine setRootViewController:parent];
+            MyWBEngineDelegate *weiboDelegate=[[MyWBEngineDelegate alloc] init ];
+            weiboDelegate.delegate=delegate;
+            weiboDelegate.viewController=parent;
+            engine.isMode=YES;
+            [engine setDelegate:weiboDelegate];
+            [weiboDelegate release];
+            [engine setRedirectURI:redirectUrl];
+            [engine setIsUserExclusive:NO];
+            if (isChange) {
+                [engine logIn];
+            }else if ([engine isLoggedIn] && ![engine isAuthorizeExpired]) {
+                //已经登录，获取用户信息再返回
+                [TipsUtils addWaitingView:parent.view withText:OpenApiLocalizedString(@"加载中，请稍侯...",@"loading",@"")];
+                [engine showUser:engine.userID];
+            }else {
+                [engine logIn];
+            }
+            [engine release];
+        }
+            break;
+        case OpenApiOfWeixin:{ //微信登录
+            
+        }
+            break;
+        case OpenApiOfTaobao:{ //淘宝账户登录
+            
+        }
+            break;
+        default:
+            break;
+    }
+}
+
+/**
+ * 使用开放平台分享内容
+ * @param platform 开放平台类型
+ * @param appKey 开放平台应用key
+ * @param appSecret 开放平台应用secret
+ * @param redirectUrl 开放平台登录回调地址
+ * @param delegate 开放平台登录委托
+ * @param parent 调用者界面，本函数使用modal方式跳转到授权界面
+ * @param content 分享内容
+ * @param pic 图片内容
+ * @return 分享结果以委托的形式通知调用者  
+ **/
++(void) shareWithPlatform:(OpenApiPlatform) platform appKey:(NSString*)appKey appSecret:(NSString*)appSecret redirectUrl:(NSString*)redirectUrl delegate:(id<OpenApiDelegate>)delegate parent:(UIViewController*)parent content:(NSString*)content pic:(UIImage*)pic{
+    [OpenApiUtils shareWithPlatform:platform appKey:appKey appSecret:appSecret redirectUrl:redirectUrl delegate:delegate parent:parent content:content detailUrl:nil pic:pic];
+}
+
+/**
+ * 使用开放平台分享内容
+ * @param platform 开放平台类型
+ * @param appKey 开放平台应用key
+ * @param appSecret 开放平台应用secret
+ * @param redirectUrl 开放平台登录回调地址
+ * @param delegate 开放平台登录委托
+ * @param parent 调用者界面，本函数使用modal方式跳转到授权界面
+ * @param content 分享内容
+ * @param detailUrl 详情url
+ * @param pic 图片内容
+ * @return 分享结果以委托的形式通知调用者
+ **/
++(void) shareWithPlatform:(OpenApiPlatform) platform appKey:(NSString*)appKey appSecret:(NSString*)appSecret redirectUrl:(NSString*)redirectUrl delegate:(id<OpenApiDelegate>)delegate parent:(UIViewController*)parent content:(NSString*)content detailUrl:(NSString*)detailUrl pic:(UIImage*)pic{
+    switch (platform) {
+        case OpenApiOfQQ:{ //qq分享
+            
+        }
+            break;
+        case OpenApiOfSWeibo:{ //新浪微博分享
+            WeiBosendViewController *controller=[[WeiBosendViewController alloc] init];
+            controller.title=OpenApiLocalizedString(@"微博分享",@"weibo_share",@"");
+            controller.appkey=appKey;
+            controller.appSecret=appSecret;
+            controller.redirectUrl=redirectUrl;
+            controller.detailUrl=detailUrl;
+            controller.delegate=delegate;
+            //            controller.isMode=YES;
+            controller.picture=pic;
+            controller.content=content;
+            controller.weiboType=TypeSinaWeibo;
+            UIBarButtonItem *backItem = [[UIBarButtonItem alloc] initWithTitle:OpenApiLocalizedString(@"返回",@"back",@"") style:UIBarButtonItemStyleBordered target:nil action:nil];
+            [parent.navigationItem setBackBarButtonItem:backItem];//修改的是navigationItem
+            [backItem release];
+            
+            //            [parent presentModalViewController:controller animated:YES];
+            [parent.navigationController pushViewController:controller animated:YES];
+            [controller release];
+        }
+            break;
+        case OpenApiOfTWeibo:{ //腾讯微博分享
+            WeiBosendViewController *controller=[[WeiBosendViewController alloc] init];
+            controller.title=OpenApiLocalizedString(@"微博分享",@"weibo_share",@"");
+            controller.appkey=appKey;
+            controller.appSecret=appSecret;
+            controller.redirectUrl=redirectUrl;
+            controller.delegate=delegate;
+            controller.detailUrl=detailUrl;
+            controller.isMode=YES;
+            controller.picture=pic;
+            controller.content=content;
+            controller.weiboType=TypeTecentWeibo;
+            UIBarButtonItem *backItem = [[UIBarButtonItem alloc] initWithTitle:OpenApiLocalizedString(@"返回",@"back",@"") style:UIBarButtonItemStyleBordered target:nil action:nil];
+            [parent.navigationItem setBackBarButtonItem:backItem];//修改的是navigationItem
+            [backItem release];
+            [parent presentViewController:controller animated:YES completion:nil];
+            [controller release];
+        }
+            break;
+        case OpenApiOfWyWeibo:{ //网易微博分享
+            WeiBosendViewController *controller=[[WeiBosendViewController alloc] init];
+            controller.title=OpenApiLocalizedString(@"微博分享",@"weibo_share",@"");
+            controller.appkey=appKey;
+            controller.appSecret=appSecret;
+            controller.redirectUrl=redirectUrl;
+            controller.delegate=delegate;
+            controller.detailUrl=detailUrl;
+            controller.isMode=YES;
+            controller.picture=pic;
+            controller.content=content;
+            controller.weiboType=TypeWyWeibo;
+            UIBarButtonItem *backItem = [[UIBarButtonItem alloc] initWithTitle:OpenApiLocalizedString(@"返回",@"back",@"") style:UIBarButtonItemStyleBordered target:nil action:nil];
+            [parent.navigationItem setBackBarButtonItem:backItem];//修改的是navigationItem
+            [backItem release];
+            [parent presentViewController:controller animated:YES completion:nil];
+            [controller release];
+        }
+            break;
+        case OpenApiOfWeixin:{ //微信分享
+            
+        }
+            break;
+        case OpenApiOfTaobao:{ //淘宝账户分享
+            
+        }
+            break;
+        case OpenApiOfSms:{ //短信分享
+            OpenApiSmsPicker *picker=[[OpenApiSmsPicker alloc] init]; //can't release
+            picker.delegate=delegate;
+            picker.rootViewController=parent;
+            [picker sendsms:content];
+            [picker release];
+        }
+            break;
+        default:
+            break;
+    }
+}
+@end

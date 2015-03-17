@@ -1,0 +1,53 @@
+/* 
+  openapi.strings
+  GWCClub
+
+  Created by yulong chen on 13-3-14.
+  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+*/
+
+"weibo_auth_title" = "用户授权";
+"QQ_auth_title" = "QQ授权并登录";
+"Tabao_auth_title" = "淘宝用户授权";
+"weibo_share" = "微博分享";
+"cancel" = "取消";
+"back" = "返回";
+"close" = "关闭";
+"OK" = "确定";
+"delete" = "删除";
+"send" = "发送";
+"done" = "完成";
+"broadcast" = "广播";
+"loading" = "加载中，请稍侯...";
+"sending" = "发送中，请稍后...";
+"Load_error" = "加载失败，请稍候再试!";
+"netError" = "你的网络很不给力，请确认是否已连接!";
+"tipsTitle" = "温馨提示";
+"device_not_support" = "设备没有短信功能";
+"version_too_low" = "IOS版本过低，暂不支持该功能!";
+"cacel_message" = "你已取消短信分享";
+"msg_success" = "短信分享成功";
+"msg_failed" = "短信分享失败";
+"enter_verify" ="请输入验证码";
+"server_error" = "服务器返回内容不正确";
+"bind_error"="用户授权失败，稍后再试!";
+"bind_success" = "用户授权成功";
+"bind_expired" = "授权已过期";
+"need_bind_weibo" = "需要用户授权!";
+"tabao_bind_success"="亲，恭喜你淘宝账户登录成功！";
+"tabao_bind_error"="淘宝账户授权失败!";
+"photo"="拍照";
+"picture"="相册";
+"Character is more than %@" = "输入内容超过了%@个字，请删减.";
+"Unrecognized operation"="无法识别的操作";
+"EmptyContent"="内容不能为空!";
+"topic"="主题";
+"phiz"="表情";
+"not support photo" ="抱歉，你的手机不支持拍照!";
+"send ok" = "发送成功！";
+"send failed" = "发送失败,请稍候再试!";
+"failed with frequent" = "抱歉，你的操作太频繁，请稍候再试！";
+"edit msg title" = "编辑消息";
+"Details" = "详情";
+
+

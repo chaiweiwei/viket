@@ -1,0 +1,135 @@
+//
+//  ALDButton.m
+//  NetBusiness
+//
+//  Created by yulong chen on 12-7-5.
+//  Copyright (c) 2012年 qw. All rights reserved.
+//
+
+#import "ALDButton.h"
+#import "ALDUtils.h"
+
+
+@interface ALDButton ()
+@property (retain,nonatomic) UIColor *preBgColor;
+@property (retain,nonatomic) UIView *coverView;
+@end
+
+@implementation ALDButton
+@synthesize userInfo=_userInfo;
+@synthesize selectBgColor=_selectBgColor;
+@synthesize preBgColor=_preBgColor;
+@synthesize imageRect=_imageRect;
+
+- (id)initWithFrame:(CGRect)frame
+{
+    self = [super initWithFrame:frame];
+    if (self) {
+        // Initialization code
+        self.imageRect=CGRectZero;
+    }
+    return self;
+}
+
+- (void)dealloc
+{
+    self.selectBgColor=nil;
+    self.preBgColor=nil;
+    self.userInfo=nil;
+    self.coverView=nil;
+#if ! __has_feature(objc_arc)
+    [super dealloc];
+#endif
+}
+
+-(void) layoutSubviews{
+    [super layoutSubviews];
+    if (!CGRectEqualToRect(_imageRect, CGRectZero)) {
+        self.imageView.frame=_imageRect;
+    }
+}
+
+/*
+// Only override drawRect: if you perform custom drawing.
+// An empty implementation adversely affects performance during animation.
+- (void)drawRect:(CGRect)rect
+{
+    // Drawing code
+}
+*/
+
+-(BOOL) beginTrackingWithTouch:(UITouch *)touch withEvent:(UIEvent *)event{
+    UIImage *image=[self imageForState:UIControlStateHighlighted];
+    if (!image) {
+        image=[self imageForState:UIControlStateSelected];
+    }
+    if (image) {
+        return [super beginTrackingWithTouch:touch withEvent:event];
+    }
+    if (_selectBgColor) {
+        self.preBgColor=self.backgroundColor;
+        self.backgroundColor=_selectBgColor;
+        return YES;
+    }else {
+        [self clickEffect];
+        return YES;
+    }
+}
+
+-(void) endTrackingWithTouch:(UITouch *)touch withEvent:(UIEvent *)event{
+    UIImage *image=[self imageForState:UIControlStateHighlighted];
+    if (!image) {
+        image=[self imageForState:UIControlStateSelected];
+    }
+    if (image) {
+        return [super endTrackingWithTouch:touch withEvent:event];
+    }
+    if (_selectBgColor) {
+        self.backgroundColor=self.preBgColor;
+    }else{
+        [self clearEffect];
+    }
+}
+
+-(void) cancelTrackingWithEvent:(UIEvent *)event{
+    UIImage *image=[self imageForState:UIControlStateHighlighted];
+    if (!image) {
+        image=[self imageForState:UIControlStateSelected];
+    }
+    if (image) {
+        return [super cancelTrackingWithEvent:event];
+    }
+    if (_selectBgColor) {
+        self.backgroundColor=self.preBgColor;
+    }else{
+        [self clearEffect];
+    }
+}
+
+- (UIView *) coverForRect:(CGRect)aRect{
+    UIView *cover = [[UIView alloc] initWithFrame:aRect];
+    cover.backgroundColor=[UIColor blackColor];
+    cover.alpha=0.3;
+    cover.layer.masksToBounds=self.layer.masksToBounds;
+    cover.layer.cornerRadius=self.layer.cornerRadius;
+    cover.layer.contentsGravity = kCAGravityCenter;
+    return ALDReturnAutoreleased(cover);
+}
+
+-(void) clickEffect{
+    if (!_coverView) {
+        CGRect rect=self.frame;
+        rect.origin.x=0;
+        rect.origin.y=0;
+        self.coverView=[self coverForRect:rect];
+    }
+    if(!_coverView.superview){
+        [self addSubview:_coverView];
+    }
+}
+
+-(void) clearEffect{
+    [_coverView removeFromSuperview];
+}
+
+@end

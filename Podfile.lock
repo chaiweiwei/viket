@@ -1,0 +1,37 @@
+PODS:
+  - ASIHTTPRequest (1.8.2):
+    - ASIHTTPRequest/ASIWebPageRequest (= 1.8.2)
+    - ASIHTTPRequest/CloudFiles (= 1.8.2)
+    - ASIHTTPRequest/Core (= 1.8.2)
+    - ASIHTTPRequest/S3 (= 1.8.2)
+  - ASIHTTPRequest/ASIWebPageRequest (1.8.2):
+    - ASIHTTPRequest/Core
+  - ASIHTTPRequest/CloudFiles (1.8.2):
+    - ASIHTTPRequest/Core
+  - ASIHTTPRequest/Core (1.8.2):
+    - Reachability
+  - ASIHTTPRequest/S3 (1.8.2):
+    - ASIHTTPRequest/Core
+  - FMDB (2.5):
+    - FMDB/standard (= 2.5)
+  - FMDB/common (2.5)
+  - FMDB/standard (2.5):
+    - FMDB/common
+  - OHAttributedLabel (3.5.5)
+  - Reachability (3.2)
+  - SBJson (3.2)
+
+DEPENDENCIES:
+  - ASIHTTPRequest (~> 1.8.2)
+  - FMDB (~> 2.3)
+  - OHAttributedLabel (~> 3.5.4)
+  - SBJson (~> 3.2)
+
+SPEC CHECKSUMS:
+  ASIHTTPRequest: 2c8335b49410c0e2ad42829c438e74d454b77590
+  FMDB: 0efa188cf0dd1ce82c27a478cd5f5fa245308677
+  OHAttributedLabel: 733b32053cd02be1044749d394e874143e41e8d7
+  Reachability: 1ef8adf5c4e3d362f96515d4278f68dad3c26930
+  SBJson: 72d7da8a5bf6c236e87194abb10ac573a8bccbef
+
+COCOAPODS: 0.35.0

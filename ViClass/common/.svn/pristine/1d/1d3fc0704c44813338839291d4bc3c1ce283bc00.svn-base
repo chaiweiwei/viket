@@ -1,0 +1,547 @@
+//
+//  ChatViewController.m
+//  OpenApi
+//
+//  Created by aaa a on 13-1-14.
+//  Copyright (c) 2013年 qw. All rights reserved.
+//
+
+#import "ChatViewController.h"
+#import <QuartzCore/QuartzCore.h>
+#import "ALDUtils.h"
+#import "ALDImageView.h"
+#import "ChatDao.h"
+#import "ALDResult.h"
+
+@interface ChatViewController ()
+
+@end
+
+@implementation ChatViewController
+@synthesize tableview;
+@synthesize refreshing=_refreshing;
+@synthesize chatArray;
+@synthesize appSn=_appSn;
+@synthesize serverUrl=_serverUrl;
+@synthesize ltId=_ltId,gtId=_gtId;
+@synthesize uid=_uid;
+
+#define kHasNextKey @"hasNext"
+
+- (void)dealloc {
+    [_appSn release];
+    [_serverUrl release];
+    [tableview release];
+	[chatArray release];
+    [super dealloc];
+}
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        _hasNext=NO;
+//        _isRefrashMore=NO;
+        _isLoadMore=NO;
+//        _refrashHasNext=NO;
+        _localHasNext=NO;
+        _pageCount=30;
+        self.gtId=0;
+        self.ltId=0;
+        _firstIdx=0;
+        self.chatArray=[NSMutableArray array];
+    }
+    return self;
+}
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        // Custom initialization
+        _hasNext=NO;
+//        _isRefrashMore=NO;
+        _isLoadMore=NO;
+//        _refrashHasNext=NO;
+        _localHasNext=NO;
+        _pageCount=30;
+        self.gtId=0;
+        self.ltId=0;
+        _firstIdx=0;
+        self.chatArray=[NSMutableArray array];
+    }
+    return self;
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    self.title=@"版聊";
+    UIBarButtonItem *rightButton=[[UIBarButtonItem alloc]initWithTitle:@"发消息" 
+                                                                 style:UIBarButtonItemStylePlain 
+                                                                target:self 
+                                                                action:@selector(selectPress)];
+    self.navigationItem.rightBarButtonItem=rightButton;
+    [rightButton release];
+    
+    self.uid=[[[NSUserDefaults standardUserDefaults] objectForKey:kUidKey] longValue];
+    
+    CGRect frame=CGRectMake(0, 0, 320, 460);
+    tableview = [[PullingRefreshTableView alloc] initWithFrame:frame pullingDelegate:self];
+    tableview.dataSource = self;
+    tableview.autoresizingMask=UIViewAutoresizingFlexibleHeight|UIViewAutoresizingFlexibleWidth;
+    tableview.separatorStyle=UITableViewCellSeparatorStyleNone;
+    tableview.delegate = self;
+    tableview.backgroundColor=[UIColor clearColor];    
+    [self.view addSubview:tableview];
+    
+    [ALDUtils addWaitingView:self.view withText:@"数据加载中，请稍候..."];
+    tableview.hidden=YES;
+    [self performSelectorInBackground:@selector(initData) withObject:nil];
+}
+
+//刷新表数据
+-(void) refrashTable{
+    tableview.hidden=NO;
+    [tableview reloadData];
+    [ALDUtils removeWaitingView:self.view];
+}
+
+-(NSMutableArray *) queryChatsFromDb:(int) firstIdx{
+    ChatDao *dao=[[ChatDao alloc] init];
+    NSMutableArray *array=[dao queryChats:_firstIdx max:30];
+    if (array && array.count>=30) {
+        _localHasNext=YES;
+    }else {
+        _localHasNext=NO;
+    }
+
+    [dao release];
+    return array;
+}
+
+-(void) initData{
+    NSAutoreleasePool *pool=[[NSAutoreleasePool alloc] init];
+    self.chatArray=[self queryChatsFromDb:_firstIdx];
+    if (chatArray && chatArray.count>0) {
+        _firstIdx=chatArray.count;
+        ChatBean *gbean=[chatArray objectAtIndex:0];
+        if (gbean.topFlag==1 && chatArray.count>1) {
+            gbean=[chatArray objectAtIndex:1];
+            self.gtId=gbean.chatId;
+        }else if(gbean.topFlag==1){
+            self.gtId=0;
+        }else {
+            self.gtId=gbean.chatId;
+        }
+        
+        id temp=[[NSUserDefaults standardUserDefaults] objectForKey:kHasNextKey];
+        if (temp) {
+            _hasNext=[temp boolValue];
+        }
+        [self performSelectorOnMainThread:@selector(refrashTable) withObject:nil waitUntilDone:NO];
+        _pageCount=50;
+    }
+    _isLoadMore=NO;
+    [self loadData]; 
+    [pool release];
+}
+
+-(void) loadData{
+    NSUserDefaults *config=[NSUserDefaults standardUserDefaults];
+    NSString *appid=[config objectForKey:kAppidKey];
+    OpenApiHttpClient *http=[OpenApiHttpClient httpClientWithDelegate:self];
+    http.needTipsNetError=YES;
+    http.serverUrl=_serverUrl;
+    if (!appid || [appid isEqualToString:@""]) {
+        [http registAppId:_appSn];
+    }else {
+        if (_isLoadMore) {
+            int count=chatArray.count;
+            if (count>0) {
+                ChatBean *chatBean=[chatArray objectAtIndex:(count-1)];
+                if(chatBean.topFlag!=1){
+                    _ltId=chatBean.chatId;
+                }
+            }
+            [http checkChats:appid appSn:_appSn ltId:_ltId gtId:0 pageCount:_pageCount];
+        }else {
+            [http checkChats:appid appSn:_appSn ltId:0 gtId:_gtId pageCount:_pageCount];
+        }
+    }
+}
+
+//发送
+-(void)selectPress{
+    SendChatViewController *controller=[[SendChatViewController alloc] init];
+    controller.title=@"聊天中";
+    controller.appSn=self.appSn;
+    controller.serverUrl=_serverUrl;
+    controller.isMode=YES;
+    controller.delegate=self;
+    [self presentViewController:controller animated:YES completion:nil];
+    [controller release];
+}
+
+#pragma mark Table view methods
+/***
+ 聊天人的头像在此方法中添加
+ ***/
+- (UIView *)bubbleView {
+	// build single chat bubble cell with given text
+	UIView *returnView = [[UIView alloc] initWithFrame:CGRectZero];
+	returnView.backgroundColor = [UIColor clearColor];
+    
+	UIImageView *bubbleImageView = [[UIImageView alloc] initWithFrame:CGRectZero];
+    bubbleImageView.tag=10;
+    ALDImageView *headImageView = [[ALDImageView alloc] init];//头像
+    headImageView.tag=11;
+    headImageView.defaultImage=[UIImage imageNamed:@"default_head.png"];
+    
+	UIFont *font = [UIFont boldSystemFontOfSize:14];
+	UILabel *bubbleText = [[UILabel alloc] initWithFrame:CGRectZero];
+	bubbleText.backgroundColor = [UIColor clearColor];
+	bubbleText.font = font;
+	bubbleText.numberOfLines = 0;
+	bubbleText.lineBreakMode = LineBreakModeCharacterWrap;
+    bubbleText.tag=12;
+
+    [returnView addSubview:headImageView];
+    [headImageView release];
+	[returnView addSubview:bubbleImageView];
+	[bubbleImageView release];
+	[returnView addSubview:bubbleText];
+	[bubbleText release];
+    
+	return [returnView autorelease];
+}
+
+- (void)getMore{
+    if (!_hasNext && !_localHasNext) {
+        [self.tableview tableViewDidFinishedLoading];
+        self.tableview.reachedTheEnd  = YES;
+        return;
+    }
+    if (_localHasNext) { //本地更多
+        [self queryChatsFromDb:_firstIdx];
+    }else { //远程取更多
+        _isLoadMore=YES;
+        [self loadData];
+    }
+}
+
+-(void) refrashClick{
+    //需要获取经纬度
+//    _page=1;
+    _hasNext=NO;
+    _isLoadMore=NO;
+    self.refreshing = NO;
+    self.tableview.reachedTheEnd  = NO;
+    
+    [self loadData];
+}
+
+#pragma mark - Your actions
+- (void)scrollLoadData{
+    NSAutoreleasePool *pool=[[NSAutoreleasePool alloc] init];
+    if (self.refreshing) {
+        [self refrashClick];
+    }else {
+        [self getMore];
+    }
+    [pool release];
+}
+#pragma mark - PullingRefreshTableViewDelegate
+- (void)pullingTableViewDidStartRefreshing:(PullingRefreshTableView *)tableView{
+    self.refreshing = YES;
+    [self performSelector:@selector(scrollLoadData) withObject:nil afterDelay:1.f];
+}
+
+- (void)pullingTableViewDidStartLoading:(PullingRefreshTableView *)tableView{
+    [self performSelector:@selector(scrollLoadData) withObject:nil afterDelay:1.f];    
+}
+
+#pragma mark - Scroll
+
+- (void)scrollViewDidScroll:(UIScrollView *)scrollView{
+    if (scrollView==tableview) {
+        [self.tableview tableViewDidScroll:scrollView];
+    }
+}
+
+- (void)scrollViewDidEndDragging:(UIScrollView *)scrollView willDecelerate:(BOOL)decelerate{
+    if (scrollView==tableview) {
+        [self.tableview tableViewDidEndDragging:scrollView];
+    }
+}
+#pragma end ##
+
+#pragma mark Table view methods
+
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
+    return 1;
+}
+
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+    if (chatArray) {
+        if (_hasNext||_localHasNext) {
+            return chatArray.count+1;
+        }
+        return chatArray.count;
+    }
+    return 0;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
+	if (chatArray && chatArray.count>0) {
+        int row=indexPath.row;
+        if (row>=chatArray.count) {
+            return 40;
+        }else{
+            //计算高度
+            ChatBean *bean=[chatArray objectAtIndex:row];
+            NSString *text=bean.content;
+            UIFont *font=[UIFont boldSystemFontOfSize:14];
+            CGSize size = [text sizeWithFont:font constrainedToSize:CGSizeMake(150.0f, 1000.0f) lineBreakMode:LineBreakModeCharacterWrap];
+            CGFloat height=size.height+30.0f;
+            if (height<70) {
+                height=70;
+            }
+            return height;
+        }
+    }
+    return 0;
+}
+
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    static NSString *moreIdentifier = @"moreCell";
+    static NSString *CellIdentifier = @"Cell";
+    int row=indexPath.row;
+    UITableViewCell *cell =nil;
+    if (row>=chatArray.count) {
+        cell = [tableView dequeueReusableCellWithIdentifier:moreIdentifier]; 
+        if (cell==nil) {
+            cell = [[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault 
+                                           reuseIdentifier: moreIdentifier ] autorelease];
+            cell.textLabel.textAlignment=TEXT_ALIGN_CENTER;
+            cell.textLabel.text=@"更   多";
+        }
+    }else {
+        ChatBean *bean=[chatArray objectAtIndex:row];
+        BOOL fromSelf=(bean.fromUid==_uid);
+        cell = [tableView dequeueReusableCellWithIdentifier:CellIdentifier];
+        if (cell == nil) {
+            cell = [[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:CellIdentifier] autorelease];
+            UIView *chatView=[self bubbleView];
+            chatView.tag=0x101;
+            [cell.contentView addSubview:chatView];
+        }
+        UIView *chatView=[cell.contentView viewWithTag:0x101];
+        UIImageView *bubbleImageView=(UIImageView*)[chatView viewWithTag:10];
+        ALDImageView *headImageView=(ALDImageView*)[chatView viewWithTag:11];
+        [headImageView setImageUrl:bean.avator];
+        UILabel *bubbleText=(UILabel*) [chatView viewWithTag:12];
+        NSString *text=bean.content;
+        CGSize size = [text sizeWithFont:bubbleText.font constrainedToSize:CGSizeMake(150.0f, 1000.0f) lineBreakMode:LineBreakModeCharacterWrap];
+        bubbleText.frame=CGRectMake(20.0f, 3.0f, size.width+10, size.height+10);
+        bubbleText.text=text;
+        UIImage *bubble = nil;
+        if (fromSelf) {  //自己发送的
+            bubble=[UIImage imageWithContentsOfFile:[[NSBundle mainBundle] pathForResource:@"bubble" ofType:@"png"]];
+            bubbleImageView.frame = CGRectMake(0.0f, 0.0f, 200.0f, size.height+20.0f);
+            chatView.frame = CGRectMake(60.0f, 20.0f, 200.0f, size.height+30.0f);
+            headImageView.frame = CGRectMake(205.0f, 5, 40.0f, 40.0f);
+        }else{ //别人发送的
+            bubble=[UIImage imageWithContentsOfFile:[[NSBundle mainBundle] pathForResource:@"bubbleSelf" ofType:@"png"]];
+            bubbleImageView.frame = CGRectMake(0.0f, 0.0f, 200.0f, size.height+20.0f);
+            chatView.frame= CGRectMake(55.0f, 20.0f, 200.0f, size.height+30.0f);        
+            headImageView.frame = CGRectMake(-50, 5, 40.0f, 40.0f);
+        }
+        bubbleImageView.image=[bubble stretchableImageWithLeftCapWidth:20 topCapHeight:14];
+        cell.selectionStyle=UITableViewCellSelectionStyleNone;
+    }
+    cell.accessoryType = UITableViewCellAccessoryNone;
+    return cell;
+}
+
+-(void) tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath{
+    if (indexPath.row>=chatArray.count) {
+        [ALDUtils addWaitingView:self.view withText:@"加载中，请稍候..."];
+        [self getMore];
+    }
+}
+
+- (void)viewDidUnload
+{
+   
+    [self setTableview:nil];
+    self.chatArray=nil;
+    [super viewDidUnload];
+    // Release any retained subviews of the main view.
+    // e.g. self.myOutlet = nil;
+}
+
+- (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
+{
+    return (interfaceOrientation == UIInterfaceOrientationPortrait);
+}
+
+-(void) saveChats:(NSArray*) chats{
+    NSAutoreleasePool *pool=[[NSAutoreleasePool alloc] init];
+    ChatDao *dao=[[ChatDao alloc] init];
+    for (ChatBean *chat in chats) {
+        [dao addChat:chat];
+    }
+    [dao release];
+    [pool release];
+}
+
+-(void) aldDataStartLoad:(ALDHttpRequestPath)requestPath{
+    if (!chatArray || chatArray.count<1) {
+        tableview.hidden=YES;
+        [ALDUtils addWaitingView:self.view withText:@"加载中，请稍候..."];
+    }
+}
+
+-(void) aldDataLoadDone:(ALDHttpRequestPath)requestPath withCode:(int)code withObj:(id)object{
+    if (requestPath==ALDHttpRequestPathForAppid) {
+        if (code==KOK) {
+            OpenApiHttpClient *http=[OpenApiHttpClient httpClientWithDelegate:self];
+            http.needTipsNetError=YES;
+            http.serverUrl=_serverUrl;
+            [http checkChats:object appSn:_appSn ltId:_ltId gtId:_gtId pageCount:_pageCount];
+        }else if(code!=kNET_ERROR && code!=kNET_TIMEOUT){
+            if (!chatArray || chatArray.count<1) {
+                [ALDUtils showTips:self.view frame:self.view.frame text:@"获取版聊内容失败!"];
+            }else {
+                [ALDUtils showToast:@"刷新版聊内容失败!"];
+            }
+        }else {
+            if (!chatArray || chatArray.count<1) {
+                [ALDUtils showTips:self.view frame:self.view.frame text:@"获取版聊内容失败，网络异常!"];
+            }else {
+                [ALDUtils showToast:@"刷新版聊内容失败，网络异常!"];
+            }
+        }
+    }else if (requestPath==ALDHttpRequestPathForCheckChats) {
+        ALDResult *result=object;
+        [ALDUtils removeWaitingView:self.view];
+        if (code==KOK) {
+            NSMutableArray *array=result.obj;
+            ChatBean *topChat=nil;
+            for (ChatBean *bean in array) {
+                if (bean.topFlag==1) {
+                    topChat=bean;
+                    break;
+                }
+            }
+            if (topChat!=nil) {
+                ChatDao *dao=[[ChatDao alloc] init];
+                [dao clearToptag];
+                [dao release];
+            }
+            
+            NSArray *newArray=[NSArray arrayWithArray:array]; //用于数据库存储
+            _hasNext=result.hasNext;
+            if (!_isLoadMore) { //为刷新时
+                for (ChatBean *chatBean in array) {
+                    if(chatBean.topFlag!=1){
+                        self.gtId=chatBean.chatId;
+                        break;
+                    }
+                }
+                if (!_hasNext) {
+                    if (topChat!=nil) {
+                        ChatBean *oldTop=nil;
+                        for (ChatBean *chatBean in chatArray) {
+                            if (chatBean.topFlag==1) {
+                                oldTop=chatBean;
+                                break;
+                            }
+                        }
+                        if (oldTop!=nil) {
+                            [chatArray removeObject:oldTop];
+                        }
+                    }
+                    
+                    [array addObjectsFromArray:chatArray];
+                }else { //有更多
+                    ChatDao *dao=[[ChatDao alloc] init];
+                    [dao clearData];
+                    [dao release];
+                }
+                self.chatArray=array;
+            }else { //更多
+                if (topChat!=nil) {
+                    [array removeObject:topChat];
+                    
+                    ChatBean *oldTop=nil;
+                    for (ChatBean *chatBean in chatArray) {
+                        if (chatBean.topFlag==1) {
+                            oldTop=chatBean;
+                            break;
+                        }
+                    }
+                    if (oldTop!=nil) {
+                        [chatArray removeObject:oldTop];
+                    }
+                    [chatArray insertObject:topChat atIndex:0];
+                }
+                
+                [chatArray addObjectsFromArray:array];
+            }
+
+            [self performSelectorInBackground:@selector(saveChats:) withObject:newArray];
+            tableview.hidden=NO;
+            if (!_hasNext) {
+                [tableview tableViewDidFinishedLoadingWithMessage:@"没有啦，加载完了!"];
+                tableview.reachedTheEnd  = YES;
+            } else {        
+                [tableview tableViewDidFinishedLoading];
+                tableview.reachedTheEnd  = NO;
+            }
+            [tableview reloadData];
+            NSUserDefaults *config=[NSUserDefaults standardUserDefaults];
+            [config setObject:[NSNumber numberWithBool:_hasNext] forKey:kHasNextKey];
+            [config synchronize];
+        }else if (code==kNO_RESULT) {
+            if (!chatArray || chatArray.count<1) {
+                tableview.hidden=YES;
+                _hasNext=NO;
+                [ALDUtils showTips:self.view frame:self.view.frame text:@"暂无版聊内容!"];
+            }else {
+                [tableview tableViewDidFinishedLoadingWithMessage:@"没有啦，加载完了!"];
+                tableview.reachedTheEnd  = YES;
+            }
+            _hasNext=NO;
+            
+            [tableview reloadData];
+        }else if (code==kNET_ERROR || code==kNET_TIMEOUT) {
+            if (!chatArray || chatArray.count<1) {
+                tableview.hidden=YES;
+                [ALDUtils showTips:self.view frame:self.view.frame text:@"加载版聊内容失败，网络异常!"];
+            }else {
+                [ALDUtils showToast:@"加载版聊内容失败，网络异常!"];
+            }
+            [tableview tableViewDidFinishedLoading];
+        }else {
+            if (!chatArray || chatArray.count<1) {
+                tableview.hidden=YES;
+                [ALDUtils showTips:self.view frame:self.view.frame text:@"加载版聊内容失败!"];
+            }else {
+                [ALDUtils showToast:@"加载版聊内容失败!"];
+            }
+            [tableview tableViewDidFinishedLoading];
+        }
+    }
+}
+
+-(void) sendChatView:(SendChatViewController *)view didSendText:(NSString *)text{
+    //NSLog(@"text:%@",text);
+    //此处刷新表格数据
+    [self refrashClick];
+}
+
+@end

@@ -1,0 +1,26 @@
+//
+//  WBTecentEngine.h
+//  WeiboApi
+//
+//  Created by yulong chen on 12-8-1.
+//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import "WBEngine.h"
+
+@interface WBTecentEngine : WBEngine{
+    
+}
+
+/**
+ * 获取用户微博
+ * @param fopenid	需要查询的用户ID。 name和fopenid至少选一个，若同时存在则以name值为主
+ * @param nick 微博昵称，uid和nick参数必须二选一
+ * @param pagetime 本页起始时间（第一页：填0，向上翻页：填上一次请求返回的第一条记录时间，向下翻页：填上一次请求返回的最后一条记录时间）
+ * @param lastid 用于翻页，和pagetime配合使用（第一页：填0，向上翻页：填上一次请求返回的第一条记录id，向下翻页：填上一次请求返回的最后一条记录id）
+ * @param page  返回结果的页码，默认为1。
+ * @param pagecount 每次请求记录的条数（1-70条）
+ **/
+-(void) readUserTimeline:(NSString *)fopenid nick:(NSString*)nick pagetime:(NSString *)pagetime lastid:(NSString*)lastid page:(int)page pagecount:(int)pagecount;
+@end

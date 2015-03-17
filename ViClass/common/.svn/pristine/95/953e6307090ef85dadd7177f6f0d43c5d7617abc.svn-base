@@ -1,0 +1,31 @@
+//
+//  WeiboAuthorizeVIewConroller.h
+//  hyt_ios
+//
+//  Created by yulong chen on 12-4-25.
+//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import "WBAuthorize.h"
+
+@interface WeiboAuthorizeVIewConroller : UIViewController<UIWebViewDelegate>{
+    UIWebView *_webView;
+    UILabel *_textLabel;
+    BOOL backClicked;
+    BOOL isSuccessed;
+    UINavigationBar *_navBar; //NO Retain
+}
+
+@property (nonatomic, retain) id<WBAuthorizeWebViewDelegate> delegate;
+
+@property (nonatomic,retain) UIWebView *webView;
+@property (nonatomic) WeiboType weiboType;
+@property (nonatomic,retain) NSString *redirectUri;
+@property (nonatomic) BOOL isMode;
+
+- (void)loadRequestWithURL:(NSURL *)url;
+
+- (void)hide:(BOOL)animated;
+
+@end

@@ -1,0 +1,46 @@
+//
+//  BaseViewController.h
+//  GHSidebarNav
+//
+//  Created by yulong chen on 12-12-20.
+//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import "ALDButton.h"
+
+@interface BaseViewController : UIViewController{
+    UIViewController *_parentController; //NO retain
+    BOOL _isRoot;
+}
+@property(nonatomic) BOOL isRoot;
+@property (assign,nonatomic) UIViewController *parentController; //NO retain
+@property (nonatomic, readonly) BOOL containmentAPISupported;
+
+/** 
+ * 自定义返回按钮
+ **/
+-(void) addBackButton;
+
+/**
+ * 返回按钮响应方法
+ **/
+-(void) onBackClicked;
+
+//通知显示侧拉导航
+- (void)revealSidebar;
+
+//移除子视图
+-(void) removeChildController:(UIViewController*)childViewController;
+
+//-(UIButton*) createNavButton:(CGRect) frame title:(NSString*)title tag:(int) tag;
+
+/**
+ * 给键盘添加关闭按钮
+ * @param inputView 需要添加的输入框
+ **/
+-(void) setInputAccessoryView:(id) inputView;
+
+//需要重写的方法
+-(void) dismissKeyBoard;
+@end

@@ -1,0 +1,22 @@
+//
+//  SendMsgToWeixinViewDelegate.h
+//  GWCClub
+//
+//  Created by yulong chen on 13-3-4.
+//  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+@protocol SendMsgToWeixinViewDelegate <NSObject>
+- (BOOL) sendTextContent:(NSString*)nsText;
+- (BOOL) sendAppContent:(NSString *)title content:(NSString*)content image:(UIImage*)image appUrl:(NSString*)appUrl extInfo:(NSString*)extInfo filePath:(NSString*)filePath;
+- (BOOL) sendImageContent:(UIImage*) image filePath:(NSString*) filePath;
+- (BOOL) sendNewsContent:(NSString*) title content:(NSString*)content image:(UIImage*) image url:(NSString*)url; 
+- (BOOL) sendMusicContent:(NSString *)title content:(NSString*)content musicUrl:(NSString*)musicUrl musicDataUrl:(NSString*)musicDataUrl; 
+- (BOOL) sendVideoContent:(NSString *)title content:(NSString*)content image:(UIImage*)image videoUrl:(NSString*)videoUrl; 
+- (BOOL) sendNonGifContent:(UIImage*)image filePath:(NSString*)filePath;
+- (BOOL) sendGifContent:(UIImage*)image filePath:(NSString*)filePath;
+- (BOOL) doAuth;
+- (void) changeScene:(NSInteger)scene;
+@end

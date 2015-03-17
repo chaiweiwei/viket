@@ -1,0 +1,317 @@
+//
+//  RegistViewController.m
+//  OpenApi
+//
+//  Created by aaa a on 13-1-19.
+//  Copyright (c) 2013年 qw. All rights reserved.
+//
+
+#import "RegistViewController.h"
+#import <QuartzCore/QuartzCore.h>
+#import "ALDUtils.h"
+@interface RegistViewController ()
+
+@end
+
+@implementation RegistViewController
+@synthesize userEmail;
+@synthesize pwdText;
+@synthesize surepwdText;
+@synthesize userNameText;
+@synthesize genderView;
+@synthesize companyText;
+@synthesize positionText;
+@synthesize rootController=_rootController;
+
+-(void)dealloc{
+    [userEmail release];
+    [pwdText release];
+    [surepwdText release];
+    [userNameText release];
+    [genderView release];
+    [companyText release];
+    [positionText release];
+    [myview release];
+    [super dealloc];
+}
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        // Custom initialization
+    }
+    return self;
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    // Do any additional setup after loading the view from its nib.
+    userExist=NO;
+    
+    UIBarButtonItem *btnSave = [[UIBarButtonItem alloc] 
+                                initWithTitle:@"注册"                                            
+                                style:UIBarButtonItemStyleBordered 
+                                target:self 
+                                action:@selector(btnClick)];
+    self.navigationItem.rightBarButtonItem = btnSave;
+    [btnSave release];
+    
+    
+    myview=[[UIView alloc]initWithFrame:CGRectMake(10, 25, 300, 350)];
+    myview.backgroundColor = [UIColor whiteColor];
+    UIColor *color=[[UIColor alloc] initWithRed:218/255.f green:215/255.f blue:215/255.f alpha:1]; 
+    myview.layer.borderColor =color.CGColor;
+    [color release];
+    myview.layer.borderWidth =1.0;
+    myview.layer.cornerRadius =10.0;
+    [self.view addSubview:myview];
+    
+    [self addLine:CGRectMake(0, 50, 300, 1)];
+    [self addLine:CGRectMake(0, 100, 300, 1)];
+    [self addLine:CGRectMake(0, 150, 300, 1)];
+    [self addLine:CGRectMake(0, 200, 300, 1)];
+    [self addLine:CGRectMake(0, 250, 300, 1)];
+    [self addLine:CGRectMake(0, 300, 300, 1)];
+    
+    [self addTitle:myview text:@"*邮箱: " frame:CGRectMake(15,15,80,20)];
+    self.userEmail=[self createTextField:@"请输入邮箱" tag:1 frame:CGRectMake(65,10,180,30)];
+    [userEmail addTarget:self action:@selector(checkIsUserExist) forControlEvents:UIControlEventEditingDidEnd];
+    [userEmail addTarget:self action:@selector(emailChanged) forControlEvents:UIControlEventEditingChanged];
+    userEmail.keyboardType=UIKeyboardTypeEmailAddress;
+    [myview addSubview:userEmail];    
+    
+    [self addTitle:myview text:@"*密码: " frame:CGRectMake(15,65,80,20)];
+    self.pwdText=[self createTextField:@"请输入密码" tag:2 frame:CGRectMake(65,60,180,30)];
+    pwdText.secureTextEntry=YES;
+    pwdText.keyboardType=UIKeyboardTypeASCIICapable;
+    [myview addSubview:pwdText];   
+    
+    [self addTitle:myview text:@"*确认密码: " frame:CGRectMake(15,115,90,20)];
+    self.surepwdText=[self createTextField:@"请确认密码" tag:3 frame:CGRectMake(95,110,175,30)];
+    surepwdText.secureTextEntry=YES;
+    surepwdText.keyboardType=UIKeyboardTypeASCIICapable;
+    [myview addSubview:surepwdText];   
+    
+    [self addTitle:myview text:@"性别: " frame:CGRectMake(15,165,80,20)];
+    self.genderView=[[[UISegmentedControl alloc] initWithItems:[NSArray arrayWithObjects:@"男",@"女", nil]] autorelease];
+    genderView.selectedSegmentIndex=0;
+    genderView.frame=CGRectMake(65,160,100,30);
+    [genderView addTarget:self action:@selector(hiddenKeybord) forControlEvents:UIControlEventValueChanged];
+    [myview addSubview:genderView];
+    
+    [self addTitle:myview text:@"姓名: " frame:CGRectMake(15,215,80,20)];
+    self.userNameText=[self createTextField:@"" tag:5 frame:CGRectMake(65,210,180,30)];
+    [myview addSubview:userNameText];   
+    
+    [self addTitle:myview text:@"所在公司: " frame:CGRectMake(15,265,80,20)];
+    self.companyText=[self createTextField:@"" tag:6 frame:CGRectMake(90,260,180,30)];
+    [myview addSubview:companyText];   
+    
+    [self addTitle:myview text:@"职位: " frame:CGRectMake(15,315,80,20)];
+    self.positionText=[self createTextField:@"" tag:7 frame:CGRectMake(65,310,180,30)];
+    [myview addSubview:positionText];   
+}
+
+-(void) addTitle:(UIView *)rootView text:(NSString *)text frame:(CGRect) frame{
+    UILabel *labletitle=[[UILabel alloc]initWithFrame:frame];
+    labletitle.font=[UIFont boldSystemFontOfSize:16.0];
+    labletitle.text=text;
+    labletitle.textAlignment=TEXT_ALIGN_LEFT;
+    labletitle.numberOfLines=1;
+    UIColor *color=[[UIColor alloc] initWithRed:14/255.f green:14/255.f blue:14/255.f alpha:1];
+    labletitle.textColor=color;
+    [color release];
+    labletitle.backgroundColor=[UIColor clearColor];
+    [rootView addSubview:labletitle]; 
+    [labletitle release];
+}
+
+-(void) addLine:(CGRect) frame{
+    UIView *lineView=[[UIView alloc] initWithFrame:frame];
+    UIColor *color=[[UIColor alloc] initWithRed:218/255.f green:215/255.f blue:215/255.f alpha:0.8];
+    lineView.backgroundColor=color;
+    [color release];
+    [myview addSubview:lineView];
+    [lineView release];
+}
+
+-(UILabel *) createLabel:(CGRect) frame{
+    UILabel *label=[[[UILabel alloc]initWithFrame:frame] autorelease];
+    label.font=[UIFont boldSystemFontOfSize:14.0];
+    UIColor *color=[[UIColor alloc] initWithRed:132/255.f green:132/255.f blue:132/255.f alpha:1];
+    label.textColor=color;
+    [color release];
+    label.textAlignment=TEXT_ALIGN_LEFT;
+    label.lineBreakMode = UILineBreakModeWordWrap;
+    label.numberOfLines=2;
+    label.enabled=YES;
+    label.backgroundColor=[UIColor clearColor];
+    return label;
+}
+
+-(UITextField *) createTextField:(NSString*)placeholder tag:(int)tag frame:(CGRect) frame{
+    UITextField *textFiled = [[UITextField alloc] initWithFrame:frame]; 
+    [textFiled setBorderStyle:UITextBorderStyleNone]; //外框类型 
+    textFiled.placeholder = placeholder; //默认显示的字 
+    textFiled.textAlignment=TEXT_ALIGN_LEFT;
+    textFiled.autocorrectionType = UITextAutocorrectionTypeNo; 
+    textFiled.autocapitalizationType = UITextAutocapitalizationTypeNone; 
+    textFiled.contentVerticalAlignment=UIControlContentVerticalAlignmentCenter;
+    textFiled.returnKeyType = UIReturnKeyDone; 
+    textFiled.font=[UIFont boldSystemFontOfSize:16];
+    textFiled.keyboardType=UIKeyboardTypeDefault;
+    textFiled.clearButtonMode = UITextFieldViewModeWhileEditing; //编辑时会出现个修改X
+    textFiled.delegate = self;
+    textFiled.tag=tag;
+    return textFiled;
+}
+
+-(void) hiddenKeybord{
+    [userEmail resignFirstResponder]; 
+    [surepwdText resignFirstResponder]; 
+    [pwdText resignFirstResponder]; 
+    [userNameText resignFirstResponder]; 
+    [companyText resignFirstResponder]; 
+    [positionText resignFirstResponder];
+    [self textFieldShouldReturn:nil];
+}
+
+
+
+- (BOOL)textFieldShouldReturn:(UITextField *)textField   
+{      
+    // When the user presses return, take focus away from the text field so that the keyboard is dismissed.          
+    NSTimeInterval animationDuration = 0.30f;          
+    [UIView beginAnimations:@"ResizeForKeyboard" context:nil];          
+    [UIView setAnimationDuration:animationDuration];          
+    CGRect rect = CGRectMake(0.0f, 0.0f, self.view.frame.size.width, self.view.frame.size.height);          
+    self.view.frame = rect;          
+    [UIView commitAnimations];          
+    [textField resignFirstResponder];  
+    return YES;          
+}  
+
+
+- (void)textFieldDidBeginEditing:(UITextField *)textField  
+{   
+    CGRect frame = textField.frame;  
+    int offset = frame.origin.y + 92 - (self.view.frame.size.height - 216.0);//键盘高度216  
+    NSTimeInterval animationDuration = 0.30f;                  
+    [UIView beginAnimations:@"ResizeForKeyBoard" context:nil];                  
+    [UIView setAnimationDuration:animationDuration];  
+    float width = self.view.frame.size.width;                  
+    float height = self.view.frame.size.height;          
+    if(offset > 0)  
+    {  
+        CGRect rect = CGRectMake(0.0f, -offset,width,height);                  
+        self.view.frame = rect;          
+    }          
+    [UIView commitAnimations];                  
+}  
+
+-(void) emailChanged{
+    userExist=NO;
+}
+
+-(void) checkIsUserExist{
+    NSString *email=userEmail.text;
+    if (email && ![email isEqualToString:@""]) {
+        if ([ALDUtils isValidateEmail:email]) {
+            if (userExist) {
+                [ALDUtils showToast:@"邮箱已被注册，请重新填写"];
+                [self requestFocus:userEmail];
+                return;
+            }
+            OpenApiHttpClient *http=[OpenApiHttpClient httpClientWithDelegate:self];
+            http.needTipsNetError=NO;
+//            [http userIsExist:email];
+        }else {
+            [ALDUtils showToast:@"邮箱地址不正确!"];
+        }
+    }else {
+        [ALDUtils showToast:@"邮箱不能为空"];
+    }
+}
+
+-(void) requestFocus:(UITextField *) textField{
+    [self textFieldShouldReturn:textField];
+    [textField becomeFirstResponder];
+}
+
+//注册
+-(void)btnClick{
+    NSString *email=userEmail.text;
+    if (!email|| [email isEqualToString:@""]) {
+        [ALDUtils showToast:@"邮箱不能为空！"];
+        [self requestFocus:userEmail];
+        return;
+    }else if (![ALDUtils isValidateEmail:email]) {
+        [ALDUtils showToast:@"请输入正确的邮箱地址！"];
+        [self requestFocus:userEmail];
+        return;
+    }else if (userExist) {
+        [ALDUtils showToast:@"邮箱已被注册，请重新填写"];
+        [self requestFocus:userEmail];
+        return;
+    }
+    NSString *pass=pwdText.text;
+    if (!pass || [pass isEqualToString:@""]) {
+        [ALDUtils showToast:@"密码不能为空！"];
+        [self requestFocus:pwdText];
+        return;
+    }else if (pass.length<6) {
+        [ALDUtils showToast:@"密码不能少于6位！"];
+        [self requestFocus:pwdText];
+        return;
+    }
+    NSString *repass=surepwdText.text;
+    if (!repass || [repass isEqualToString:@""]) {
+        [ALDUtils showToast:@"请确认密码！"];
+        [self requestFocus:surepwdText];
+        return;
+    }else if (![repass isEqualToString:pass]) {
+        [ALDUtils showToast:@"两次密码不一致，请重输！"];
+        [self requestFocus:surepwdText];
+        return;
+    }
+    [self hiddenKeybord];
+   /* 
+    PersonalBean *bean=[[PersonalBean alloc] init];
+    bean.email=email;
+    bean.pass=pass;
+    bean.name=userNameText.text;
+    bean.companyName=companyText.text;
+    bean.companyTitle=positionText.text;
+    //    bean.gender=genderView.selectedSegmentIndex;
+    
+    ALDHttpClient *http=[ALDHttpClient httpClientWithDelegate:self];
+    http.needTipsNetError=YES;
+    [http registerUser:bean];
+    [bean release];
+    */
+}
+
+
+- (void)viewDidUnload
+{
+    [myview release],myview=nil;
+    [self setUserEmail:nil];
+    [self setUserNameText:nil];
+    [self setPwdText:nil];
+    [self setSurepwdText:nil];
+    [self setGenderView:nil];
+    [self setCompanyText:nil];
+    [self setPositionText:nil];
+    [super viewDidUnload];
+    // Release any retained subviews of the main view.
+    // e.g. self.myOutlet = nil;
+}
+
+- (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
+{
+    return (interfaceOrientation == UIInterfaceOrientationPortrait);
+}
+
+@end

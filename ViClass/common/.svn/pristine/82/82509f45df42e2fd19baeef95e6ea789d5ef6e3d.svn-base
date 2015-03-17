@@ -1,0 +1,291 @@
+//
+//  ImageViewController.m
+//  OpenApi
+//
+//  Created by yulong chen on 13-1-4.
+//  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+//
+
+#import "ImageViewController.h"
+#import "OpenApiLocalizedString.h"
+
+@interface ImageViewController (){
+    NSTimer *_controlVisibilityTimer;
+    UIStatusBarStyle _previousStatusBarStyle;
+}
+
+@end
+
+@implementation ImageViewController
+@synthesize photo=_photo;
+@synthesize tag=_tag;
+@synthesize delegate=_delegate;
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        self.wantsFullScreenLayout=YES;
+    }
+    return self;
+}
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        // Custom initialization
+        self.wantsFullScreenLayout=YES;
+    }
+    return self;
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    self.view.backgroundColor=[UIColor blackColor];
+    [self addBackButton];
+    
+	// Do any additional setup after loading the view.
+//    _photoView=[[ALDBigPhotoView alloc] initWithFrame:[self frameForPhotoView]];
+    _photoView=[[ALDBigPhotoView alloc] initWithFrame:[self frameForPhotoView] target:self action:@selector(toggleControls)];
+    [self.view addSubview:_photoView];
+    [_photoView setImage:_photo];
+    // Toolbar
+    _toolbar = [[UIToolbar alloc] initWithFrame:[self frameForToolbarAtOrientation:self.interfaceOrientation]];
+    _toolbar.tintColor = nil;
+    if ([[UIToolbar class] respondsToSelector:@selector(appearance)]) {
+        [_toolbar setBackgroundImage:nil forToolbarPosition:UIToolbarPositionAny barMetrics:UIBarMetricsDefault];
+        [_toolbar setBackgroundImage:nil forToolbarPosition:UIToolbarPositionAny barMetrics:UIBarMetricsLandscapePhone];
+    }
+    _toolbar.barStyle = UIBarStyleBlackTranslucent;
+    _toolbar.autoresizingMask = UIViewAutoresizingFlexibleTopMargin | UIViewAutoresizingFlexibleWidth;
+    [self.view addSubview:_toolbar];
+}
+
+- (void)reloadData {
+    // Toolbar items & navigation
+    UIBarButtonItem *fixedLeftSpace = [[[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFixedSpace target:self action:nil] autorelease];
+    fixedLeftSpace.width = 32; // To balance action button
+    UIBarButtonItem *flexSpace = [[[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:self action:nil] autorelease];
+    NSMutableArray *items = [[NSMutableArray alloc] init];
+    
+    // Toolbar Items
+    UIBarButtonItem *closeBtn = [[UIBarButtonItem alloc] initWithTitle:OpenApiLocalizedString(@"关闭",@"close",@"") style:UIBarButtonItemStyleBordered target:self action:@selector(close)];
+    UIBarButtonItem *deleteBtn = [[UIBarButtonItem alloc] initWithTitle:OpenApiLocalizedString(@"删除",@"delete",@"") style:UIBarButtonItemStyleBordered target:self action:@selector(delete)];
+    
+    [items addObject:closeBtn];
+//    if (_displayActionButton) [items addObject:fixedLeftSpace];
+    [items addObject:flexSpace];
+//    if (numberOfPhotos > 1) [items addObject:_previousButton];
+    [items addObject:flexSpace];
+//    if (numberOfPhotos > 1) [items addObject:_nextButton];
+    [items addObject:flexSpace];
+//    if (_displayActionButton) [items addObject:_actionButton];
+    [items addObject:deleteBtn];
+    [_toolbar setItems:items];
+    [closeBtn release];
+    [deleteBtn release];
+    [items release];
+    // Update
+//    [self performLayout];
+    
+    // Layout
+    if (SYSTEM_VERSION_LESS_THAN(@"5")) 
+        [self viewWillLayoutSubviews];
+    else 
+        [self.view setNeedsLayout];
+    
+}
+
+#pragma mark - Layout
+
+- (void)viewWillLayoutSubviews {
+    
+    // Super
+    if (SYSTEM_VERSION_GREATER_THAN_OR_EQUAL_TO(@"5")) [super viewWillLayoutSubviews];
+	
+	// Toolbar
+	_toolbar.frame = [self frameForToolbarAtOrientation:self.interfaceOrientation];
+	
+	// Get paging scroll view frame to determine if anything needs changing
+	CGRect pagingScrollViewFrame = [self frameForPhotoView];
+    
+	// Frame needs changing
+	_photoView.frame = pagingScrollViewFrame;
+}
+
+-(void) viewWillAppear:(BOOL)animated{
+    // Status bar
+    if (self.wantsFullScreenLayout && UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPhone) {
+        _previousStatusBarStyle = [[UIApplication sharedApplication] statusBarStyle];
+        [[UIApplication sharedApplication] setStatusBarStyle:UIStatusBarStyleBlackTranslucent animated:animated];
+    }
+    _statusBarHidden=[[UIApplication sharedApplication] isStatusBarHidden];
+    _navIsHidden=self.navigationController.navigationBarHidden;
+    self.navigationController.navigationBarHidden=YES;
+    
+    [self setControlsHidden:NO animated:NO permanent:YES];
+    [self reloadData];
+}
+
+-(void) viewWillDisappear:(BOOL)animated{
+    self.navigationController.navigationBarHidden=_navIsHidden;
+    [self setControlsHidden:NO animated:NO permanent:YES];
+    
+    // Status bar
+    if (self.wantsFullScreenLayout && UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPhone) {
+        [[UIApplication sharedApplication] setStatusBarHidden:_statusBarHidden withAnimation:UIStatusBarAnimationFade];
+        [[UIApplication sharedApplication] setStatusBarStyle:_previousStatusBarStyle animated:animated];
+    }
+}
+
+- (CGRect)frameForToolbarAtOrientation:(UIInterfaceOrientation)orientation {
+    CGFloat height = 44;
+    if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPhone &&
+        UIInterfaceOrientationIsLandscape(orientation)) height = 32;
+	if (self.wantsFullScreenLayout) {
+        return CGRectMake(0, 20, self.view.bounds.size.width, height);
+    }else {
+        return CGRectMake(0, 0, self.view.bounds.size.width, height);
+    }
+}
+
+#define PADDING 0.0f
+- (CGRect)frameForPhotoView {
+    CGRect frame = self.view.bounds;// [[UIScreen mainScreen] bounds];
+    frame.origin.x -= PADDING;
+    frame.size.width += (2 * PADDING);
+    return frame;
+}
+
+-(void) close{
+    [self dismissViewControllerAnimated:YES completion:nil];
+}
+
+-(void) delete{
+    //操作
+    if (_delegate && [_delegate respondsToSelector:@selector(didSelectOnDelete:)]) {
+        [_delegate didSelectOnDelete:self];
+    }
+    [self dismissViewControllerAnimated:YES completion:nil];
+}
+
+- (void)viewDidUnload
+{
+    [self cancelControlHiding];
+    [_photoView release],_photoView=nil;
+    [_toolbar release],_toolbar =nil;
+    [super viewDidUnload];
+    // Release any retained subviews of the main view.
+}
+
+- (void)dealloc
+{
+    [self cancelControlHiding];
+    [_photo release];
+    [_photoView release];
+    [_toolbar release];
+    [super dealloc];
+}
+
+- (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
+{
+    return YES;
+}
+
+//- (void)willRotateToInterfaceOrientation:(UIInterfaceOrientation)toInterfaceOrientation duration:(NSTimeInterval)duration {
+//    
+//	// Remember page index before rotation
+//	NSLog(@"willRotateToInterfaceOrientation");
+//	
+//}
+
+- (void)willAnimateRotationToInterfaceOrientation:(UIInterfaceOrientation)toInterfaceOrientation duration:(NSTimeInterval)duration {
+	// Layout manually (iOS < 5)
+    if (SYSTEM_VERSION_LESS_THAN(@"5")) [self viewWillLayoutSubviews];
+//	NSLog(@"willAnimateRotationToInterfaceOrientation");
+    
+    // Delay control holding
+	[self hideControlsAfterDelay];
+}
+
+// If permanent then we don't set timers to hide again
+#pragma mark - Control Hiding / Showing
+- (void)setControlsHidden:(BOOL)hidden animated:(BOOL)animated permanent:(BOOL)permanent {
+    
+    // Cancel any timers
+    [self cancelControlHiding];
+	
+	// Status bar and nav bar positioning
+    if (self.wantsFullScreenLayout) {
+        
+        // Get status bar height if visible
+        CGFloat statusBarHeight = 0;
+        if (![UIApplication sharedApplication].statusBarHidden) {
+            CGRect statusBarFrame = [[UIApplication sharedApplication] statusBarFrame];
+            statusBarHeight = MIN(statusBarFrame.size.height, statusBarFrame.size.width);
+        }
+        
+        // Status Bar
+        [[UIApplication sharedApplication] setStatusBarHidden:hidden withAnimation:animated?UIStatusBarAnimationFade:UIStatusBarAnimationNone];
+        
+        // Get status bar height if visible
+        if (![UIApplication sharedApplication].statusBarHidden) {
+            CGRect statusBarFrame = [[UIApplication sharedApplication] statusBarFrame];
+            statusBarHeight = MIN(statusBarFrame.size.height, statusBarFrame.size.width);
+        }
+        
+        // Set navigation bar frame
+        CGRect navBarFrame = self.navigationController.navigationBar.frame;
+        navBarFrame.origin.y = statusBarHeight;
+        self.navigationController.navigationBar.frame = navBarFrame;
+        
+    }
+    
+    // Captions
+//    NSMutableSet *captionViews = [[[NSMutableSet alloc] initWithCapacity:_visiblePages.count] autorelease];
+//    for (MWZoomingScrollView *page in _visiblePages) {
+//        if (page.captionView) [captionViews addObject:page.captionView];
+//    }
+	
+	// Animate
+    if (animated) {
+        [UIView beginAnimations:nil context:nil];
+        [UIView setAnimationDuration:0.35];
+    }
+    CGFloat alpha = hidden ? 0 : 1;
+	[self.navigationController.navigationBar setAlpha:alpha];
+	[_toolbar setAlpha:alpha];
+//    for (UIView *v in captionViews) v.alpha = alpha;
+	if (animated) [UIView commitAnimations];
+	
+	// Control hiding timer
+	// Will cancel existing timer but only begin hiding if
+	// they are visible
+	if (!permanent) [self hideControlsAfterDelay];
+	
+}  
+
+- (void)cancelControlHiding {
+	// If a timer exists then cancel and release
+	if (_controlVisibilityTimer) {
+		[_controlVisibilityTimer invalidate];
+		[_controlVisibilityTimer release];
+		_controlVisibilityTimer = nil;
+	}
+}
+
+// Enable/disable control visiblity timer
+- (void)hideControlsAfterDelay {
+	if (![self areControlsHidden]) {
+        [self cancelControlHiding];
+		_controlVisibilityTimer = [[NSTimer scheduledTimerWithTimeInterval:5 target:self selector:@selector(hideControls) userInfo:nil repeats:NO] retain];
+	}
+}
+
+- (BOOL)areControlsHidden { return (_toolbar.alpha == 0); /* [UIApplication sharedApplication].isStatusBarHidden; */ }
+- (void)hideControls { [self setControlsHidden:YES animated:YES permanent:NO]; }
+- (void)toggleControls { [self setControlsHidden:![self areControlsHidden] animated:YES permanent:NO]; }
+
+@end

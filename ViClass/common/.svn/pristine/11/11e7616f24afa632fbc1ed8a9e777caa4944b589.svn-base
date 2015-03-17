@@ -1,0 +1,731 @@
+//
+//  ALDHttpClient.m
+//  OpenApi
+//
+//  Created by yulong chen on 13-1-17.
+//  Copyright (c) 2013年 __MyCompanyName__. All rights reserved.
+//
+
+#import "OpenApiHttpClient.h"
+#import "ASIHTTPRequest.h"
+#import "ASIFormDataRequest.h"
+#import "ALDResult.h"
+#import "SBJson.h"
+#import "NetworkTest.h"
+#import "ASINetworkQueue.h"
+#import "ASIDownloadCache.h"
+#import "ChatBean.h"
+#import "UserBean.h"
+#import "OpenApiLocalizedString.h"
+#import "StringUtil.h"
+
+@implementation OpenApiHttpClient
+#define kRequestPathKey @"requestPath"
+
+@synthesize serverUrl=_serverUrl;
+@synthesize delegate=_delegate;
+@synthesize needTipsNetError=_needTipsNetError;
+@synthesize rootView=_rootView;
+
+static ASINetworkQueue *networkQueue;
+
+-(void) initQueue{
+    if (!networkQueue) {
+        NSLog(@"HttpClient the ASINetworkQueue be alloced");
+        [ASIHTTPRequest setShouldUpdateNetworkActivityIndicator:YES]; //是否显示网络请求信息在status bar上
+        networkQueue = [[ASINetworkQueue alloc] init];
+        //[networkQueue reset];
+        //[networkQueue setDownloadProgressDelegate:progressIndicator];
+        //[networkQueue setRequestDidReceiveResponseHeadersSelector:@selector(request:didReceiveResponseHeaders:)];
+        [networkQueue setRequestDidStartSelector:@selector(requestStarted:)];
+        [networkQueue setRequestDidFinishSelector:@selector(requestFinished:)];
+        [networkQueue setRequestDidFailSelector:@selector(requestFailed:)];
+        [networkQueue setShouldCancelAllRequestsOnFailure:NO ]; //设置为NO当取消了一个请求，不至于取消所有的请求
+        [networkQueue setMaxConcurrentOperationCount:10]; //最大同时执行任务数
+        //[networkQueue setShowAccurateProgress:[accurateProgress isOn]]; //设置精确控制进度
+        //[networkQueue setDelegate:self];
+        [networkQueue go];
+    }
+}
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        [self initQueue];
+    }
+    return self;
+}
+
+/** 
+ * 释放网络请求
+ */
++(void) releaseNetworkQueue{
+    if (networkQueue) {
+        [networkQueue cancelAllOperations];
+        [networkQueue release];
+        networkQueue=nil;
+    }
+}
+
+-(id) initWithDelegate:(id<ALDDataLoadStateDelegate>) delegate{
+    self = [self init];
+    if (self) {
+        self.delegate=delegate;
+    }
+    return self;
+}
+
++(id) httpClient{
+    OpenApiHttpClient *http = [[[self alloc] init] autorelease];
+    return http;
+}
+
++(id) httpClientWithDelegate:(id<ALDDataLoadStateDelegate>) delegate{
+    return [[[self alloc] initWithDelegate:delegate] autorelease];
+}
+
+/**
+ * 初始化请求头
+ */
+-(void) addDefaultHeader:(ASIHTTPRequest *) request{
+    NSString *uid=[[NSUserDefaults standardUserDefaults] objectForKey:kUidKey];
+    if (!uid) {
+        uid=@"0";
+    }
+    if (![uid isKindOfClass:[NSString class]]) {
+        uid=[NSString stringWithFormat:@"%@",uid];
+    }
+    [request addRequestHeader:@"x_sid" value:uid];
+    [request addRequestHeader:@"x_platform" value:@"ios"];
+    [request addRequestHeader:@"x-provider-name" value:@"ALIDAO"];
+}
+
+-(void) executeRequest:(ASIHTTPRequest *) request needCache:(BOOL) needCache{
+    [request setShouldAttemptPersistentConnection:NO]; //设置是否重用链接
+    [request setTimeOutSeconds:20]; //设置超时时间，单位秒
+    [request setNumberOfTimesToRetryOnTimeout:0]; //设置请求超时时，设置重试的次数
+    [request setDelegate:self];
+    [request setShouldContinueWhenAppEntersBackground:YES];  //当应用后台运行时仍然请求数据    
+    if (needCache) {
+        [request setDownloadCache:[ASIDownloadCache sharedCache]];
+        [request setSecondsToCache:60*60*24*30]; // 缓存30 天
+        [request setCacheStoragePolicy:ASICachePermanentlyCacheStoragePolicy];
+        [request setCachePolicy:ASIAskServerIfModifiedCachePolicy|ASIFallbackToCacheIfLoadFailsCachePolicy];
+    }else {
+        [request setCachePolicy:ASIDoNotReadFromCacheCachePolicy]; //设置不使用缓存
+    }
+    //[request startAsynchronous];
+    [networkQueue addOperation:request];
+}
+
+/**
+ * 申请appid
+ * @return 结果以接口回调aldaldDataLoadDone:code withObj:obj通知请求发起者，code为状态，若成功obj为appid
+ */
+-(void)registAppId:(NSString*)appSn{
+    NSString *parameter = [[[NSString alloc] initWithFormat:@"{'softwareName':'"] autorelease]; 
+    parameter = [parameter stringByAppendingString:kSoftwareName];
+    parameter = [parameter stringByAppendingString:@"',"];
+    parameter = [parameter stringByAppendingString:@"'softwareVersion':'"];
+    parameter = [parameter stringByAppendingString:kSoftwareVersion];
+    parameter = [parameter stringByAppendingString:@"',"];
+    parameter = [parameter stringByAppendingString:@"'publishChannel':"];
+    parameter = [parameter stringByAppendingString:kPublishChannel];
+    parameter = [parameter stringByAppendingString:@","];
+    parameter = [parameter stringByAppendingString:@"'mobileResolution':"];
+    parameter = [parameter stringByAppendingString:kMobileResolution];
+    parameter = [parameter stringByAppendingString:@","];
+    parameter = [parameter stringByAppendingString:@"'isTouch':"];
+    parameter = [parameter stringByAppendingString:kIsTouch];
+    parameter = [parameter stringByAppendingString:@","];
+    parameter = [parameter stringByAppendingString:@"'mobileBrandModel':"];
+    parameter = [parameter stringByAppendingString:kMobileBrandModel];
+    parameter = [parameter stringByAppendingString:@","];
+    parameter = [parameter stringByAppendingString:@"'androidVersion':"];
+    parameter = [parameter stringByAppendingString:kAndroidVersion];
+    parameter = [parameter stringByAppendingString:@","];
+    parameter = [parameter stringByAppendingString:@"'kernelVersion':"];
+    parameter = [parameter stringByAppendingString:kKernelVersion];
+    parameter = [parameter stringByAppendingString:@","];
+    parameter = [parameter stringByAppendingString:@"'builderNumber':"];
+    parameter = [parameter stringByAppendingString:kBuilderNumber];
+    parameter = [parameter stringByAppendingString:@","];
+    parameter = [parameter stringByAppendingString:@"'firmwareConfiguationVersion':"];
+    parameter = [parameter stringByAppendingString:kFirmwareConfiguationVersion];
+    parameter = [parameter stringByAppendingString:@","];
+    parameter = [parameter stringByAppendingString:@"'supportNetwork':"];
+    parameter = [parameter stringByAppendingString:kSupportNetwork];
+    parameter = [parameter stringByAppendingString:@","];
+    parameter = [parameter stringByAppendingString:@"'browserKernel':"];
+    parameter = [parameter stringByAppendingString:kBrowserKernel];
+    parameter = [parameter stringByAppendingString:@","];
+    parameter = [parameter stringByAppendingString:@"'appSn':'"];
+    parameter = [parameter stringByAppendingString:appSn];
+    parameter = [parameter stringByAppendingString:@"'}"];
+    
+    NSURL *url = [NSURL URLWithString:[_serverUrl stringByAppendingString:@"app/appidSign.do"]];
+    ASIHTTPRequest *request = [ASIHTTPRequest requestWithURL:url];
+    [self addDefaultHeader:request];
+    [request addRequestHeader:@"Content-Type" value:@"application/json;charset=UTF-8"];
+    NSMutableDictionary *userInfo=[NSMutableDictionary dictionary];
+    [userInfo setValue:[NSNumber numberWithInt:ALDHttpRequestPathForAppid] forKey:kRequestPathKey];
+    request.userInfo=userInfo;
+    
+    [request appendPostData:[parameter dataUsingEncoding:NSUTF8StringEncoding]];
+    [self executeRequest:request needCache:NO];
+}
+
+-(ALDResult *)decodeAppid:(NSString *)responseString{
+    ALDResult *result=[[[ALDResult alloc] init] autorelease];
+    id jsonObject = [responseString strToJSON];
+    if ([jsonObject isKindOfClass:[NSDictionary class]]) {
+        NSDictionary *dir = (NSDictionary *)jsonObject;
+        int code=[[dir objectForKey:@"code"] intValue];
+        result.code=code;
+        if(code!=KOK){
+            NSLog(@"Init appid error, code:%d",code);
+        }else {
+            NSString *appId = [dir objectForKey:@"appid"];
+            if (appId) {
+                result.obj=appId;
+                [[NSUserDefaults standardUserDefaults] setObject:appId forKey:kAppidKey];
+                [[NSUserDefaults standardUserDefaults] synchronize];
+            }else {
+                result.code=kAPPID_ERROR;
+            }
+        }
+    }
+    return result;
+}
+
+/**
+ * 上传经纬度信息
+ * @param appid 应用初始化申请的appid
+ * @param appSn 应用标识
+ * @param uid 用户id
+ * @param lat 纬度
+ * @param lng 经度
+ * @return 结果以接口回调aldDataLoadDone:code withObj:obj通知请求发起者，code为状态
+ **/
+-(void) uploadLatlng:(NSString *)appid appSn:(NSString*)appSn lat:(NSString*)lat lng:(NSString*) lng{
+    if (!appid || [appid isEqualToString:@""] ||!appSn || [appSn isEqualToString:@""]  
+        ||!lat || [lat isEqualToString:@""] || !lng || [lng isEqualToString:@""]) {
+        if([_delegate respondsToSelector:@selector(aldDataLoadDone:withCode:withObj:)]){
+            [_delegate aldDataLoadDone:ALDHttpRequestPathForUpLatlng withCode:kPARAM_ERROR withObj:nil];
+        }
+        return;
+    }
+
+    NSString *parameter=[NSString stringWithFormat:@"appid=%@&appSn=%@&lat=%@&lng=%@",appid,appSn,lat,lng];
+    NSString *requestUrl=[_serverUrl stringByAppendingFormat:@"app/memberTrace/put?%@",parameter];
+    NSString *url = [requestUrl stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+    ASIHTTPRequest *request = [ASIHTTPRequest requestWithURL:[NSURL URLWithString:url]];
+    [self addDefaultHeader:request]; 
+    NSMutableDictionary *userInfo=[NSMutableDictionary dictionary];
+    [userInfo setValue:[NSNumber numberWithInt:ALDHttpRequestPathForUpLatlng] forKey:kRequestPathKey];
+    request.userInfo=userInfo;
+    [self executeRequest:request needCache:NO];	
+}
+
+/**
+ * 开放平台登录
+ * @param appid 应用程序初始化时，服务端分配给应用程序的id
+ * @param appSn 应用标识
+ * @param openUid 开发平台的用户id
+ * @param type 1：新浪微博 2：腾讯微博 3：支付宝 4：qq
+ * @param token 开放平台授权令牌 所有的开发平台都有
+ * @param openKey 开放平台授权key
+ * @return 结果以接口回调aldDataLoadDone:code withObj:obj通知请求发起者，code为状态，result.obj为用户uid
+ **/
+-(void) loginWithAppid:(NSString*)appid appSn:(NSString*)appSn openUid:(NSString*)openUid type:(int)type token:(NSString*)token openKey:(NSString*) openKey{
+    if (!appid || [appid isEqualToString:@""] ||!appSn || [appSn isEqualToString:@""] 
+        || !openUid || [openUid isEqualToString:@""] || !token || [token isEqualToString:@""]) {
+        if([_delegate respondsToSelector:@selector(aldDataLoadDone:withCode:withObj:)]){
+            [_delegate aldDataLoadDone:ALDHttpRequestPathForOpenApiLogin withCode:kPARAM_ERROR withObj:nil];
+        }
+        return;
+    }
+    
+    NSString *parameter=[NSString stringWithFormat:@"appid=%@&appSn=%@&type=%d&token=%@&ouid=%@",appid,appSn,type,token,openUid];
+    if (openKey) {
+        parameter=[parameter stringByAppendingFormat:@"&key=%@",openKey];
+    }
+    NSString *requestUrl=[_serverUrl stringByAppendingFormat:@"app/member/openBind?%@",parameter];
+    NSString *url = [requestUrl stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+    ASIHTTPRequest *request = [ASIHTTPRequest requestWithURL:[NSURL URLWithString:url]];
+    [self addDefaultHeader:request];
+    NSMutableDictionary *userInfo=[NSMutableDictionary dictionary];
+    [userInfo setValue:[NSNumber numberWithInt:ALDHttpRequestPathForOpenApiLogin] forKey:kRequestPathKey];
+    request.userInfo=userInfo;
+    [self executeRequest:request needCache:NO];	
+}
+
+/**
+ * 手机登录时，请求后台发送验证码
+ * @param appid 应用程序初始化时，服务端分配给应用程序的id
+ * @param appSn 应用标识
+ * @param userName 手机号或用户名
+ * @param pwd 密码或手机收到的验证码
+ * @return @return 结果以接口回调aldDataLoadDone:code withObj:obj通知请求发起者，code为状态，result.obj为用户uid
+ **/
+-(void) loginWithAppid:(NSString*)appid appSn:(NSString*)appSn userName:(NSString*)userName pwd:(NSString*) pwd{
+    if (!appid || [appid isEqualToString:@""] ||!appSn || [appSn isEqualToString:@""] 
+        || !userName || [userName isEqualToString:@""] || !pwd || [pwd isEqualToString:@""]) {
+        if([_delegate respondsToSelector:@selector(aldDataLoadDone:withCode:withObj:)]){
+            [_delegate aldDataLoadDone:ALDHttpRequestPathForLogin withCode:kPARAM_ERROR withObj:nil];
+        }
+        return;
+    }
+    
+    NSString *parameter=[NSString stringWithFormat:@"appid=%@&appSn=%@&userName=%@&pwd=%@",appid,appSn,userName,pwd];
+    NSString *requestUrl=[_serverUrl stringByAppendingFormat:@"app/member/login?%@",parameter];
+    NSString *url = [requestUrl stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+    ASIHTTPRequest *request = [ASIHTTPRequest requestWithURL:[NSURL URLWithString:url]];
+    [self addDefaultHeader:request];
+    NSMutableDictionary *userInfo=[NSMutableDictionary dictionary];
+    [userInfo setValue:[NSNumber numberWithInt:ALDHttpRequestPathForLogin] forKey:kRequestPathKey];
+    request.userInfo=userInfo;
+    [self executeRequest:request needCache:NO];	
+}
+
+/**
+ * 用户登录时或输入验证码进行验证
+ * @param appid 应用程序初始化时，服务端分配给应用程序的id
+ * @param appSn 应用标识
+ * @param phone 手机号
+ * @return 结果以接口回调aldDataLoadDone:code withObj:obj通知请求发起者，code为状态
+ **/
+-(void) verifyPhone:(NSString*)appid appSn:(NSString*)appSn phone:(NSString*)phone{
+    if (!appid || [appid isEqualToString:@""] ||!appSn || [appSn isEqualToString:@""] 
+        || !phone || [phone isEqualToString:@""]) {
+        if([_delegate respondsToSelector:@selector(aldDataLoadDone:withCode:withObj:)]){
+            [_delegate aldDataLoadDone:ALDHttpRequestPathForVerifyPhone withCode:kPARAM_ERROR withObj:nil];
+        }
+        return;
+    }
+    
+    NSString *parameter=[NSString stringWithFormat:@"appid=%@&appSn=%@&phone=%@",appid,appSn,phone];
+    NSString *requestUrl=[_serverUrl stringByAppendingFormat:@"app/member/getPhoneRegCode?%@",parameter];
+    NSString *url = [requestUrl stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+    ASIHTTPRequest *request = [ASIHTTPRequest requestWithURL:[NSURL URLWithString:url]];
+    [self addDefaultHeader:request];
+    NSMutableDictionary *userInfo=[NSMutableDictionary dictionary];
+    [userInfo setValue:[NSNumber numberWithInt:ALDHttpRequestPathForVerifyPhone] forKey:kRequestPathKey];
+    request.userInfo=userInfo;
+    [self executeRequest:request needCache:NO];	
+}
+
+/**
+ * 发送群聊
+ * @param appid 应用程序初始化时，服务端分配给应用程序的id
+ * @param appSn 应用标识
+ * @param content 发布的内容
+ * @return 结果以接口回调aldDataLoadDone:code withObj:obj通知请求发起者，code为状态
+ **/
+-(void) sendChat:(NSString*)appid appSn:(NSString*)appSn content:(NSString*) content{
+    if (!appid || [appid isEqualToString:@""] ||!appSn || [appSn isEqualToString:@""] 
+        || !content || [content isEqualToString:@""]) {
+        if([_delegate respondsToSelector:@selector(aldDataLoadDone:withCode:withObj:)]){
+            [_delegate aldDataLoadDone:ALDHttpRequestPathForSendChat withCode:kPARAM_ERROR withObj:nil];
+        }
+        return;
+    }
+    
+    NSString *url=[_serverUrl stringByAppendingString:@"app/chat/put"];
+    ASIFormDataRequest *request=[ASIFormDataRequest requestWithURL:[NSURL URLWithString:url]];
+    [request setPostFormat:ASIURLEncodedPostFormat];
+    [request addPostValue:appid forKey:@"appid"]; //UUID
+    [request addPostValue:appSn forKey:@"appSn"]; //应用名称
+    [request addPostValue:content forKey:@"content"]; //版本号
+    
+    [self addDefaultHeader:request];
+    NSMutableDictionary *userInfo=[NSMutableDictionary dictionary];
+    [userInfo setValue:[NSNumber numberWithInt:ALDHttpRequestPathForSendChat] forKey:kRequestPathKey];
+    request.userInfo=userInfo;
+    [self executeRequest:request needCache:NO];
+}
+
+/**
+ * 获取群聊信息,可以使用增量更新的方式
+ * @param appid 应用程序初始化时，服务端分配给应用程序的id
+ * @param appSn 应用标识
+ * @param ltId 取小于该id的聊天内容，分页用，刷新时不需要
+ * @param gtId 取大于该id的聊天内容，刷新数据时用
+ * @param pageCount 每页条数，默认20条
+ * @return 结果以接口回调aldDataLoadDone:code withObj:obj通知请求发起者，code为状态，result.obj为会话列表
+ **/
+-(void) checkChats:(NSString*)appid appSn:(NSString*)appSn ltId:(long) ltId gtId:(long)gtId pageCount:(int) pageCount{
+    if (!appid || [appid isEqualToString:@""] ||!appSn || [appSn isEqualToString:@""]) {
+        if([_delegate respondsToSelector:@selector(aldDataLoadDone:withCode:withObj:)]){
+            [_delegate aldDataLoadDone:ALDHttpRequestPathForCheckChats withCode:kPARAM_ERROR withObj:nil];
+        }
+        return;
+    }
+    if (pageCount<=0) pageCount=20;
+    
+    NSString *parameter=[NSString stringWithFormat:@"appid=%@&appSn=%@&pageCount=%d",appid,appSn,pageCount];
+    if (ltId>0) {
+        parameter=[parameter stringByAppendingFormat:@"&ltId=%ld",ltId];
+    }
+    if (gtId>0) {
+        parameter=[parameter stringByAppendingFormat:@"&gtId=%ld",gtId];
+    }
+    NSString *requestUrl=[_serverUrl stringByAppendingFormat:@"app/chat/get?%@",parameter];
+    NSString *url = [requestUrl stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+    ASIHTTPRequest *request = [ASIHTTPRequest requestWithURL:[NSURL URLWithString:url]];
+    
+    [self addDefaultHeader:request];
+    NSMutableDictionary *userInfo=[NSMutableDictionary dictionary];
+    [userInfo setValue:[NSNumber numberWithInt:ALDHttpRequestPathForCheckChats] forKey:kRequestPathKey];
+    request.userInfo=userInfo;
+    [self executeRequest:request needCache:YES];
+}
+
+-(ALDResult*) decodeChats:(NSString *)responseString{
+    ALDResult *result=[[ALDResult alloc] init] ;
+    id jsonObject = [responseString strToJSON];
+    if ([jsonObject isKindOfClass:[NSDictionary class]]) {
+        NSDictionary *dir = (NSDictionary *)jsonObject;
+        int code=[[dir objectForKey:@"code"] intValue];
+        result.code=code;
+        if(code!=KOK){
+            NSLog(@"checkChats error, code:%d",code);
+        }else {
+            id hasNext=[dir objectForKey:@"hasNext"];
+            if (hasNext && ![hasNext isKindOfClass:[NSNull class]]) {
+                result.hasNext=[hasNext intValue];
+            }
+            NSArray *list=[dir objectForKey:@"list"];
+            if ([list isKindOfClass:[NSArray class]] && list.count>0) {
+                NSMutableArray *chats=[NSMutableArray array];
+                for (NSDictionary *dic in list) {
+                    ChatBean *bean=[[ChatBean alloc] init];
+                    id temp=[dic objectForKey:@"id"];
+                    if (temp) {
+                        bean.chatId=[temp longValue];
+                    }
+                    temp=[dic objectForKey:@"uid"];
+                    if (temp) {
+                        bean.fromUid=[temp longValue];
+                    }
+                    bean.name=[dic objectForKey:@"name"];
+                    bean.avator=[dic objectForKey:@"avator"];
+                    bean.content=[dic objectForKey:@"content"];
+                    bean.createDate=[dic objectForKey:@"createDate"];
+                    temp=[dic objectForKey:@"topFlag"];
+                    if (temp) {
+                        bean.topFlag=[temp intValue];
+                    }
+                    [chats addObject:bean];
+                    [bean release];
+                }
+                result.obj=chats;
+            }else {
+                result.code=kNO_RESULT;
+            }
+        }
+    }else {
+        result.code=kDATA_ERROR;
+    }
+    return [result autorelease];
+}
+
+/**
+ * 获取附近的人
+ * @param appid 应用程序初始化时，服务端分配给应用程序的id
+ * @param appSn 应用标识
+ * @param lat 纬度
+ * @param lng 经度
+ * @param radius 半径,单位米
+ * @param page 页码 默认第1页
+ * @param pageCount 每页条数，默认20条
+ * @return 结果以接口回调dataLoadDone:code withObj:obj通知请求发起者，code为状态，result.obj为用户列表
+ **/
+-(void) nearbyUser:(NSString*)appid appSn:(NSString*)appSn lat:(NSString*)lat lng:(NSString*)lng radius:(int)radius page:(int)page pageCount:(int) pageCount{
+    if (!appid || [appid isEqualToString:@""] ||!appSn || [appSn isEqualToString:@""]  
+        ||!lat || [lat isEqualToString:@""] || !lng || [lng isEqualToString:@""]) {
+        if([_delegate respondsToSelector:@selector(aldDataLoadDone:withCode:withObj:)]){
+            [_delegate aldDataLoadDone:ALDHttpRequestPathForNearbyUser withCode:kPARAM_ERROR withObj:nil];
+        }
+        return;
+    }
+    if (page<=0) page=1;
+    if (pageCount<=0) pageCount=20;
+//    if (radius<500) radius=1000;
+    NSString *parameter=[NSString stringWithFormat:@"appid=%@&appSn=%@&lat=%@&lng=%@&page=%d&pageCount=%d",appid,appSn,lat,lng,page,pageCount];
+    if (radius>0) {
+        parameter=[parameter stringByAppendingFormat:@"&radius=%d",radius];
+    }
+    NSString *requestUrl=[_serverUrl stringByAppendingFormat:@"app/memberTrace/getNearbyUser?%@",parameter];
+    NSString *url = [requestUrl stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+    ASIHTTPRequest *request = [ASIHTTPRequest requestWithURL:[NSURL URLWithString:url]];
+    [self addDefaultHeader:request];
+    NSMutableDictionary *userInfo=[NSMutableDictionary dictionary];
+    [userInfo setValue:[NSNumber numberWithInt:ALDHttpRequestPathForNearbyUser] forKey:kRequestPathKey];
+    request.userInfo=userInfo;
+    [self executeRequest:request needCache:NO];
+}
+
+-(ALDResult*) decodeNearbyUser:(NSString *)responseString{
+    ALDResult *result=[[ALDResult alloc] init] ;
+    id jsonObject = [responseString strToJSON];
+    if ([jsonObject isKindOfClass:[NSDictionary class]]) {
+        NSDictionary *dir = (NSDictionary *)jsonObject;
+        int code=[[dir objectForKey:@"code"] intValue];
+        result.code=code;
+        if(code!=KOK){
+            NSLog(@"nearbyUser error, code:%d",code);
+        }else {
+            id hasNext=[dir objectForKey:@"hasNext"];
+            if (hasNext && ![hasNext isKindOfClass:[NSNull class]]) {
+                result.hasNext=[hasNext intValue];
+            }
+            NSArray *list=[dir objectForKey:@"list"];
+            if ([list isKindOfClass:[NSArray class]] && list.count>0) {
+                NSMutableArray *users=[NSMutableArray array];
+                for (NSDictionary *dic in list) {
+                    UserBean *bean=[[UserBean alloc] init];
+                    id temp=[dic objectForKey:@"id"];
+                    if (temp) {
+                        bean.uid=[temp longValue];
+                    }
+                    bean.name=[dic objectForKey:@"name"];
+                    bean.avator=[dic objectForKey:@"avator"];
+                    bean.lat=[dic objectForKey:@"lat"];
+                    bean.lng=[dic objectForKey:@"lng"];
+                    temp=[dic objectForKey:@"rang"];
+                    if (temp) {
+                        bean.rang=[temp intValue];
+                    }
+                    bean.signature=[dic objectForKey:@"signature"];
+                    [users addObject:bean];
+                    [bean release];
+                }
+                result.obj=users;
+            }else {
+                result.code=kNO_RESULT;
+            }
+        }
+    }else {
+        result.code=kDATA_ERROR;
+    }
+    return [result autorelease];
+}
+
+-(void) saveUid:(NSString*)uid{
+    if (uid) {
+        uid=[NSString stringWithFormat:@"%@",uid];
+    }
+    NSUserDefaults *config=[NSUserDefaults standardUserDefaults];
+    [config setObject:uid forKey:kUidKey];
+    [config synchronize];
+}
+
+- (void)requestStarted:(ASIHTTPRequest *)request{ //请求开始
+    NSLog(@"begin to load data--------relativePath:%@",request.url.absoluteString);
+//    NSDictionary *headers=[request requestHeaders];
+//    NSLog(@"headers:%@",headers);
+    if([_delegate respondsToSelector:@selector(aldDataStartLoad:)]){
+        NSDictionary *userInfo=request.userInfo;
+        ALDHttpRequestPath requestPath=[[userInfo objectForKey:kRequestPathKey] intValue];
+		[_delegate aldDataStartLoad:requestPath];
+	}else {
+        [self showWaitView:OpenApiLocalizedString(@"加载中，请稍后...",@"loading",@"")];
+    }
+}
+
+- (void)requestFinished:(ASIHTTPRequest *)request{ //请求成功完成
+    if (request.responseStatusCode!=200 && ![request didUseCachedResponse]) {
+        return [self requestFailed:request];
+    }
+    if([_delegate respondsToSelector:@selector(aldDataLoadDone:withCode:withObj:)]){
+        NSString *responseString = [request responseString];
+//        NSLog(@"responseString:%@",responseString);
+        ALDResult *result=nil;
+        NSDictionary *userInfo=request.userInfo;
+        ALDHttpRequestPath requestPath=[[userInfo objectForKey:kRequestPathKey] intValue];
+        switch (requestPath) {
+            case ALDHttpRequestPathForAppid:{
+                result=[self decodeAppid:responseString];
+            }
+                break; 
+            case ALDHttpRequestPathForLogin:{
+                //协议还在商讨中
+                result=[[[ALDResult alloc] init] autorelease];
+                id jsonObject=[responseString strToJSON];
+                if ([jsonObject isKindOfClass:[NSDictionary class]]) {
+                    NSDictionary *dic=jsonObject;
+                    result.code=[[dic objectForKey:@"code"] intValue];
+                    NSDictionary *data=[dic objectForKey:@"data"];
+                    if(data && [data isKindOfClass:[NSDictionary class]]) {
+                        result.obj=[data objectForKey:@"id"];
+                        [self saveUid:result.obj];
+                    }else{
+                        result.obj=data;
+                    }
+                }else{
+                    result.code=kDATA_ERROR;
+                }
+            }
+                break;  
+            case ALDHttpRequestPathForOpenApiLogin:{
+                result=[[[ALDResult alloc] init] autorelease];
+                id jsonObject=[responseString strToJSON];
+                if ([jsonObject isKindOfClass:[NSDictionary class]]) {
+                    NSDictionary *dic=jsonObject;
+                    result.code=[[dic objectForKey:@"code"] intValue];
+                    NSDictionary *data=[dic objectForKey:@"data"];
+                    if(data && [data isKindOfClass:[NSDictionary class]]) {
+                        result.obj=[data objectForKey:@"id"];
+                        [self saveUid:result.obj];
+                    }else{
+                        result.obj=data;
+                    }
+                }else{
+                    result.code=kDATA_ERROR;
+                }
+            }
+                break;
+            case ALDHttpRequestPathForUpLatlng:{
+                result=[[[ALDResult alloc] init] autorelease];
+                id jsonObject = [responseString strToJSON];
+                int code=0;
+                if ([jsonObject isKindOfClass:[NSDictionary class]]) {
+                    NSDictionary *dic = (NSDictionary *)jsonObject;
+                    code = [[dic objectForKey:@"code"] intValue];
+                }
+                result.code=code;
+            }
+                break;
+            case ALDHttpRequestPathForVerifyPhone:{
+                result=[[[ALDResult alloc] init] autorelease];
+                id jsonObject = [responseString strToJSON];
+                int code=0;
+                if ([jsonObject isKindOfClass:[NSDictionary class]]) {
+                    NSDictionary *dic = (NSDictionary *)jsonObject;
+                    code = [[dic objectForKey:@"code"] intValue];
+                }
+                result.code=code;
+            }
+                break;
+            case ALDHttpRequestPathForNearbyUser:{
+                result=[self decodeNearbyUser:responseString];
+                [self removeWaitView];
+                [_delegate aldDataLoadDone:requestPath withCode:result.code withObj:result];
+                return;
+            }
+                break;
+            case ALDHttpRequestPathForSendChat:{
+                result=[[[ALDResult alloc] init] autorelease];
+                id jsonObject = [responseString strToJSON];
+                int code=0;
+                if ([jsonObject isKindOfClass:[NSDictionary class]]) {
+                    NSDictionary *dic = (NSDictionary *)jsonObject;
+                    code = [[dic objectForKey:@"code"] intValue];
+                }
+                result.code=code;
+            }
+                break;
+            case ALDHttpRequestPathForCheckChats:{
+                result=[self decodeChats:responseString];
+                [self removeWaitView];
+                [_delegate aldDataLoadDone:requestPath withCode:result.code withObj:result];
+                return;
+            }
+                break;
+            default:
+                break;
+        }
+        [self removeWaitView];
+        
+        [_delegate aldDataLoadDone:requestPath withCode:result.code withObj:result.obj];
+	}
+}
+
+- (void)requestFailed:(ASIHTTPRequest *)request{ //请求失败
+    int errorCode=0;
+    NSError *error=request.error;
+    if (error) {
+        errorCode=error.code;
+        NSDictionary *errorInfo=error.userInfo;
+        if (errorInfo && [errorInfo isKindOfClass:[NSDictionary class]]) {
+            NSString *descrip=[errorInfo objectForKey:NSLocalizedDescriptionKey];
+            NSRange range=[descrip rangeOfString:@"timed out"];
+            if (range.location!=NSNotFound) {
+                errorCode=kNET_TIMEOUT;
+                if (_needTipsNetError) {
+                    NSString *netError=OpenApiLocalizedString(@"很抱歉，网络请求超时，请检查网络！",@"netError",@"");
+                    [self showAlert:OpenApiLocalizedString(@"温馨提示",@"tipsTitle",@"") strForMsg:netError withTag:111 otherButtonTitles:nil];
+                }
+            }
+        }
+        
+        NSLog(@"request error:%@",error);
+    }else if (![NetworkTest connectedToNetwork]) { 
+        if (_needTipsNetError) {
+            NSString *netError=OpenApiLocalizedString(@"很抱歉，网络请求超时，请检查网络！",@"netError",@"");
+            [self showAlert:OpenApiLocalizedString(@"温馨提示",@"tipsTitle",@"") strForMsg:netError withTag:111 otherButtonTitles:nil];
+        }
+        errorCode=kNET_ERROR;
+    }else {
+        errorCode=kHOST_ERROR;
+    }
+    [self removeWaitView];
+    if([_delegate respondsToSelector:@selector(aldDataLoadDone:withCode:withObj:)]){
+        NSDictionary *userInfo=request.userInfo;
+        ALDHttpRequestPath requestPath=[[userInfo objectForKey:kRequestPathKey] intValue];
+		[_delegate aldDataLoadDone:requestPath withCode:errorCode withObj:nil];
+	}
+}
+
+-(void) showWaitView:(NSString *)msg{
+    if (!_waitingView) {
+        CGRect rc = CGRectMake(60, 120,200, 120);
+        _waitingView = [[WaitingView alloc] initWithFrame:rc];
+        _waitingView.activityPosition=WaitingActivityInTop;
+        _waitingView.rootView=_rootView;
+        _waitingView.tag = kWaitingViewTag;
+        _waitingView.showMessage = msg;
+        [_waitingView show];
+    }else {
+        _waitingView.warningView.hidden=YES;
+        _waitingView.showMessage = msg;
+        [_waitingView setNeedsDisplay];
+    } 
+}
+
+-(void) removeWaitView{
+    if (_waitingView) {
+        [_waitingView hide];
+        [_waitingView release];
+        _waitingView=nil;
+    }
+}
+
+-(void) showAlert:(NSString*) title strForMsg:(NSString*) msg withTag:(NSInteger) tag otherButtonTitles:(NSString*) btnTitle{
+    UIAlertView* alert;
+    NSString *closeText=OpenApiLocalizedString(@"关闭",@"close",@"");
+    if(btnTitle){
+        alert = [[UIAlertView alloc] initWithTitle:title message:msg delegate:nil cancelButtonTitle:closeText otherButtonTitles:btnTitle,nil];
+    }else{
+        alert = [[UIAlertView alloc] initWithTitle:title message:msg delegate:nil cancelButtonTitle:closeText otherButtonTitles:btnTitle,nil];
+    }
+    alert.tag = tag;
+    [alert show];
+    [alert release];
+}
+
+- (void)dealloc
+{
+    [self setDelegate:nil];
+    [self removeWaitView];
+    if (_waitingView) {
+        [_waitingView release];
+    }
+    [_rootView release];
+    
+    [super dealloc];
+}
+  
+@end

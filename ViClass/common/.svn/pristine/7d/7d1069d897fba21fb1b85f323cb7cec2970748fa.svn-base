@@ -1,0 +1,285 @@
+//
+//  WBAuthorize.m
+//  SinaWeiBoSDK
+//  Based on OAuth 2.0
+//
+//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+//  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+//  OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+//  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+//  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+//  WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+//  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+//  OTHER DEALINGS IN THE SOFTWARE.
+//
+//  Copyright 2011 Sina. All rights reserved.
+//
+
+#import "LinkedInAuthorize.h"
+#import "WBRequest.h"
+#import "OpenApiLocalizedString.h"
+#import "LinkedInAuthorizeVIewConroller.h"
+
+#define kLinkedInAuthorizeURL     @"https://www.linkedin.com/uas/oauth2/authorization"
+#define kLinkedInAccessTokenURL   @"https://www.linkedin.com/uas/oauth2/accessToken"
+
+@interface LinkedInAuthorize (Private)
+
+- (void)dismissModalViewController;
+- (void)requestAccessTokenWithAuthorizeCode:(NSString *)code;
+- (void)requestAccessTokenWithUserID:(NSString *)userID password:(NSString *)password;
+-(NSMutableDictionary *) getParams:(NSURL *)url;
+@end
+
+@implementation LinkedInAuthorize
+
+@synthesize appKey;
+@synthesize appSecret;
+@synthesize redirectURI;
+@synthesize request;
+@synthesize rootViewController;
+@synthesize delegate;
+@synthesize isChangeLogin;
+@synthesize hasBackBtn=_hasBackBtn;
+@synthesize isMode=_isMode;
+
+#pragma mark - WBAuthorize Life Circle
+
+- (id)initWithAppKey:(NSString *)theAppKey appSecret:(NSString *)theAppSecret
+{
+    if (self = [super init])
+    {
+        self.appKey = theAppKey;
+        self.appSecret = theAppSecret;
+    }
+    
+    return self;
+}
+
+- (void)dealloc
+{
+    //NSLog(@"WBAuthorize dealloc:%@",self);
+    [appKey release], appKey = nil;
+    [appSecret release], appSecret = nil;
+    
+    [redirectURI release], redirectURI = nil;
+    
+    [request setDelegate:nil];
+    [request disconnect];
+    [request release], request = nil;
+    [delegate release];
+    
+    [super dealloc];
+}
+
+#pragma mark - WBAuthorize Private Methods
+
+- (void)dismissModalViewController
+{
+    [rootViewController dismissViewControllerAnimated:YES completion:nil];
+}
+
+- (void)requestAccessTokenWithAuthorizeCode:(NSString *)code
+{
+    NSDictionary *params = [NSDictionary dictionaryWithObjectsAndKeys:appKey, @"client_id",
+                                                                      appSecret, @"client_secret",
+                                                                      @"authorization_code", @"grant_type",
+                                                                      redirectURI, @"redirect_uri",
+                                                                      code, @"code", nil];
+    [request disconnect];
+    NSString *baseUrl=kLinkedInAccessTokenURL;
+    
+    self.request = [WBRequest requestWithURL:baseUrl
+                                   httpMethod:@"POST"
+                                       params:params
+                                 postDataType:kWBRequestPostDataTypeNormal
+                             httpHeaderFields:nil 
+                                     delegate:self];
+    
+    [request connect];
+}
+
+-(NSMutableDictionary *) getParams:(NSURL *)url{
+    if(!url || ![url isKindOfClass:[NSURL class]]){
+        return nil;
+    }
+    NSString * query=url.query;
+    if(!query || [query isEqualToString:@""]){
+        NSArray * params=[url.absoluteString componentsSeparatedByString:@"#"];
+        if(params.count>1){
+            query=[params objectAtIndex:1];
+        }
+    }
+    
+    if(!query || [query isEqualToString:@""]){
+        return nil;
+    }
+    
+    //query=[query stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+    NSMutableDictionary *result=[[[NSMutableDictionary alloc] init] autorelease];
+    NSArray *params=[query componentsSeparatedByString:@"&"];
+    for(NSString *str in params){
+        NSArray *tmp=[str componentsSeparatedByString:@"="];
+        if (tmp.count<2) {
+            continue;
+        }
+        NSString *key=[[tmp objectAtIndex:0] stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+        key=[key stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        NSString *value=[[tmp objectAtIndex:1] stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+        value=[value stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        [result setValue:value forKey:key];
+    }
+    return result;
+}
+
+#pragma mark - WBAuthorize Public Methods
+
+- (void)startAuthorize
+{
+    NSString *state=[NSString stringWithFormat:@"%0.f",[[NSDate date] timeIntervalSince1970]];
+    NSString *urlString =nil;
+    NSMutableDictionary *params=[NSMutableDictionary dictionaryWithObjectsAndKeys:appKey, @"client_id",
+            @"code", @"response_type",
+            redirectURI, @"redirect_uri",
+            @"mobile", @"display",
+            state,@"state", nil];
+    /*	Required. Value is always code	Passed a value other than code; Passed an empty value; Missing the parameter.
+     	Required. Value of your API Key given when you registered your application with LinkedIn	Invalid client id; Passed multiple client ids; Passed an empty value; Missing the parameter
+     scope	Optional. Use it to specify a list of member permissions that you need and these will be shown to the user on LinkedIn's authorization form. If not passed, defaults to r_ basicprofile. Specify multiple scopes by adding a space between different parameters. Remember to URL encode your spaces! Example: scope=r_fullprofile%20r_emailaddress%20r_network.	Not spelled correctly or Invalid Value; Repeated scope values.
+     state	Required. A long unique string value of your choice that is hard to guess. Used to prevent CSRF. Example: state=DCEEFWF45453sdffef424	Passed an empty value; Missing the parameter
+     redirect_uri**/
+
+    urlString = [WBRequest serializeURL:kLinkedInAuthorizeURL
+                                 params:params
+                             httpMethod:@"GET"];
+    
+    LinkedInAuthorizeVIewConroller *webView=[[LinkedInAuthorizeVIewConroller alloc] initWithNibName:@"LinkedInAuthorizeVIewConroller" bundle:nil];
+    webView.redirectUri=redirectURI;
+    webView.hidesBottomBarWhenPushed=YES;
+    webView.isMode=self.isMode;
+    //WBAuthorizeWebView *webView = [[WBAuthorizeWebView alloc] init];
+    [webView setDelegate:self];
+    webView.title=@"LinkedIn Authorize";
+
+    if (_isMode) {
+        UINavigationController *nav=[[UINavigationController alloc] initWithRootViewController:webView];
+        nav.navigationBar.tintColor=rootViewController.navigationController.navigationBar.tintColor;
+        nav.navigationBar.backgroundColor=rootViewController.navigationController.navigationBar.backgroundColor;
+        [rootViewController presentViewController:nav animated:YES completion:nil];
+        [nav release];
+    }else {
+        UIBarButtonItem *backItem = [[UIBarButtonItem alloc] initWithTitle:OpenApiLocalizedString(@"返回",@"back",@"") style:UIBarButtonItemStyleBordered target:nil action:nil];  
+        [rootViewController.navigationItem setBackBarButtonItem:backItem];//修改的是navigationItem  
+        [backItem release];
+        [rootViewController.navigationController pushViewController:webView animated:YES];
+    }
+    [webView loadRequestWithURL:[NSURL URLWithString:urlString]];
+    [webView release];
+}
+
+- (void)startAuthorizeUsingUserID:(NSString *)userID password:(NSString *)password
+{
+    [self requestAccessTokenWithUserID:userID password:password];
+}
+
+#pragma mark - WBAuthorizeWebViewDelegate Methods
+
+- (void)authorizeWebView:(WBAuthorizeWebView *)webView didReceiveAuthorizeCode:(NSString *)code
+{
+    if (webView) {
+        [webView hide:YES];
+    }
+    // if not canceled
+    if (![code isEqualToString:@"21330"])
+    {
+        [self requestAccessTokenWithAuthorizeCode:code];
+    }else {
+        if ([delegate respondsToSelector:@selector(authorize:didFailWithError:)])
+        {
+            NSError *error = [NSError errorWithDomain:kWBSDKErrorDomain 
+                                                 code:kWBErrorUserCancel 
+                                             userInfo:[NSDictionary dictionaryWithObject:[NSString stringWithFormat:@"%d", kWBSDKErrorCodeAuthorizeError] 
+                                                                                  forKey:kWBSDKErrorCodeKey]];
+            [delegate authorize:self didFailWithError:error];
+        }
+        [self setDelegate:nil];
+    }
+}
+
+- (void)authorizeWebView:(WBAuthorizeWebView *)webView didReceivedWithRequest:(NSURLRequest *)theRequest{
+    NSURL *url=theRequest.URL;
+//    NSLog(@"result url:%@",url);
+    BOOL success = NO;
+    NSDictionary *dict = [self getParams:url];
+    if (webView) {
+        [webView hide:YES];
+    }
+    if (dict) {
+        NSString *token = [dict objectForKey:@"access_token"];
+        NSString *userID = [dict objectForKey:@"uid"];
+        NSInteger seconds = [[dict objectForKey:@"expires_in"] intValue];
+        NSString *openKey= [dict objectForKey:@"openkey"];
+        
+        success = token && userID;
+        
+        if (success && [delegate respondsToSelector:@selector(authorize:didSucceedWithAccessToken:userID:expiresIn:openKey:)])
+        {
+            [delegate authorize:self didSucceedWithAccessToken:token userID:userID expiresIn:seconds openKey:openKey];
+        }
+    }
+    
+    // should not be possible
+    if (!success && [delegate respondsToSelector:@selector(authorize:didFailWithError:)])
+    {
+        NSError *error = [NSError errorWithDomain:kWBSDKErrorDomain 
+                                             code:kWBErrorCodeSDK 
+                                         userInfo:[NSDictionary dictionaryWithObject:[NSString stringWithFormat:@"%d", kWBSDKErrorCodeAuthorizeError] 
+                                                                              forKey:kWBSDKErrorCodeKey]];
+        [delegate authorize:self didFailWithError:error];
+    }
+    [self setDelegate:nil];
+}
+
+#pragma mark - WBRequestDelegate Methods
+
+- (void)request:(WBRequest *)theRequest didFinishLoadingWithResult:(id)result
+{
+    BOOL success = NO;
+    if ([result isKindOfClass:[NSDictionary class]])
+    {
+        NSDictionary *dict = (NSDictionary *)result;
+        
+        NSString *token = [dict objectForKey:@"access_token"];
+        NSString *userID = [dict objectForKey:@"uid"];
+        NSInteger seconds = [[dict objectForKey:@"expires_in"] intValue];
+        NSString *openKey= [dict objectForKey:@"openkey"];
+        
+        success = token==nil?NO:YES;
+        if (success && [delegate respondsToSelector:@selector(authorize:didSucceedWithAccessToken:userID:expiresIn:openKey:)])
+        {
+            [delegate authorize:self didSucceedWithAccessToken:token userID:userID expiresIn:seconds openKey:openKey];
+        }
+    }
+    
+    // should not be possible
+    if (!success && [delegate respondsToSelector:@selector(authorize:didFailWithError:)])
+    {
+        NSError *error = [NSError errorWithDomain:kWBSDKErrorDomain 
+                                             code:kWBErrorCodeSDK 
+                                         userInfo:[NSDictionary dictionaryWithObject:[NSString stringWithFormat:@"%d", kWBSDKErrorCodeAuthorizeError] 
+                                                                              forKey:kWBSDKErrorCodeKey]];
+        [delegate authorize:self didFailWithError:error];
+    }
+    [self setDelegate:nil];
+}
+
+- (void)request:(WBRequest *)theReqest didFailWithError:(NSError *)error
+{
+    if ([delegate respondsToSelector:@selector(authorize:didFailWithError:)])
+    {
+        [delegate authorize:self didFailWithError:error];
+    }
+    [self setDelegate:nil];
+}
+
+@end
