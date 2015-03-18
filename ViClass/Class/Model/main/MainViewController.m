@@ -106,11 +106,11 @@
     
     HttpClient *httpClient = [HttpClient httpClientWithDelegate:self];
     if([self.typeId intValue] == 1)
-        [httpClient getrSubjectList:_iPage pageCount:_iPageSize keyword:nil categoryId:nil hot:1 top:0 new:0];
+        [httpClient getrSubjectList:_iPage pageCount:_iPageSize keyword:nil categoryId:nil hot:0 top:1 new:0];
     else if([self.typeId intValue] == 2)
         [httpClient getrSubjectList:_iPage pageCount:_iPageSize keyword:nil categoryId:nil hot:0 top:0 new:1];
     else if([self.typeId intValue] == 3)
-        [httpClient getrSubjectList:_iPage pageCount:_iPageSize keyword:nil categoryId:nil hot:0 top:1 new:0];
+        [httpClient getrSubjectList:_iPage pageCount:_iPageSize keyword:nil categoryId:nil hot:1 top:0 new:0];
 }
 
 //==============
@@ -356,7 +356,7 @@
     ClassRoomBean *bean = [dic objectForKey:@"data"];
     
     ClassListViewController *controller = [[ClassListViewController alloc] init];
-    controller.title = @"详细";
+    controller.title = @"课程详情";
     controller.courseId = bean.sid;
     
     if (_parentController) {

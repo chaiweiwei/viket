@@ -227,8 +227,8 @@
     ChapterBean *bean=nil;
     AttachmentBean *at = nil;
     
-    NSArray *params=[NSArray arrayWithObjects:uid,classId, nil];
-    FMResultSet *rs=[self query:@"*" whereCaluse:@"uid=? and classId=?" selectionArgs:params];
+    NSArray *params=[NSArray arrayWithObjects:uid,classId,sid, nil];
+    FMResultSet *rs=[self query:@"*" whereCaluse:@"uid=? and classId=? and sid=?" selectionArgs:params];
     
     if([rs next]){ //sid Varchar(20) PRIMARY KEY,classId Varchar(20),uid Varchar(20),name Varchar(60),url Varchar(60),type ,createTime Varchar(30),count Integer
         bean=[[ChapterBean alloc] init];

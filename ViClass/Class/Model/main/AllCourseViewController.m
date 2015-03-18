@@ -340,7 +340,7 @@
     ClassRoomBean *bean = _tableData[indexPath.row];
     
     ClassListViewController *controller = [[ClassListViewController alloc] init];
-    controller.title = @"详细";
+    controller.title = @"课程详情";
     controller.courseId = bean.sid;
     [self.navigationController pushViewController:controller animated:YES];
 }

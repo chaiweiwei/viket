@@ -115,7 +115,7 @@
         //自定义导航栏
         UINavigationBar *bar=[[UINavigationBar alloc] initWithFrame:CGRectMake(0, 0, viewWidth, 64)];
         
-        UINavigationItem *item=[[UINavigationItem alloc] initWithTitle:@"播放中"];
+        UINavigationItem *item=[[UINavigationItem alloc] initWithTitle:@"章节详情"];
         
         [bar pushNavigationItem:item animated:YES]; //把导航条推入到导航栏
         

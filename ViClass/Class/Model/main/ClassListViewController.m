@@ -208,9 +208,13 @@
     self.titleLabel.hidden = YES;
     [bgImgView addSubview:self.titleLabel];
     
-    size = [ALDUtils captureTextSizeWithText:[NSString stringWithFormat:@"%@\n\n教师名称: %@\n教师简介: %@",_firstBean.note,_firstBean.teacherName,_firstBean.teacherNote] textWidth:(viewWidth-25) font:KFontSizeBold24px];
-    self.contentLabel = [self createLabel:CGRectMake(15, 50, viewWidth-25, size.height) title:[NSString stringWithFormat:@"%@\n\n教师名称: %@\n教师简介: %@",_firstBean.note,_firstBean.teacherName,_firstBean.teacherNote] textColor:RGBACOLOR(30, 30, 30, 1) textFont:KFontSizeBold24px];
+//    size = [ALDUtils captureTextSizeWithText:[NSString stringWithFormat:@"%@\n\n教师名称: %@\n教师简介: %@",_firstBean.note,_firstBean.teacherName,_firstBean.teacherNote] textWidth:(viewWidth-25) font:KFontSizeBold24px];
+//    self.contentLabel = [self createLabel:CGRectMake(15, 50, viewWidth-25, size.height) title:[NSString stringWithFormat:@"%@\n\n教师名称: %@\n教师简介: %@",_firstBean.note,_firstBean.teacherName,_firstBean.teacherNote] textColor:RGBACOLOR(30, 30, 30, 1) textFont:KFontSizeBold24px];
+//    self.contentLabel.numberOfLines = 0;
+    size = [ALDUtils captureTextSizeWithText:[NSString stringWithFormat:@"%@",_firstBean.note] textWidth:(viewWidth-25) font:KFontSizeBold24px];
+    self.contentLabel = [self createLabel:CGRectMake(15, 50, viewWidth-25, size.height) title:[NSString stringWithFormat:@"%@",_firstBean.note] textColor:RGBACOLOR(30, 30, 30, 1) textFont:KFontSizeBold24px];
     self.contentLabel.numberOfLines = 0;
+
 //    label.layer.shadowColor = KWordBlackColor.CGColor;
 //    label.layer.shadowOffset = CGSizeMake(0, 1);
 //    label.layer.shadowRadius = 1.0;
@@ -507,7 +511,7 @@
     if([at.type intValue] == 3)
     {//视频
         ShowViewController *controller = [[ShowViewController alloc] init];
-        controller.title = @"播放中";
+        controller.title = @"章节详情";
         controller.dataChangedDelegate = self;
         controller.chapterId = bean.sid;
         controller.url = [self chineseToUTf8Str:at.url];
@@ -638,7 +642,8 @@
             if([at.type intValue] == 3)
             {//视频
                 ShowViewController *controller = [[ShowViewController alloc] init];
-                controller.title = @"播放中";
+                controller.title = @"章节详情";
+                controller.dataChangedDelegate = self;
                 controller.chapterId = bean.sid;
                 controller.url = [self chineseToUTf8Str:at.url];
                 controller.toController = 2;

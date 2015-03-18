@@ -100,6 +100,16 @@
 }
 -(void)submit:(UIButton *)sender
 {
+    if(userName.text.length<=0)
+    {
+        [ALDUtils showToast:@"用户名为空"];
+        return;
+    }
+    if(passWord.text.length<=0)
+    {
+         [ALDUtils showToast:@"密码为空"];
+        return;
+    }
     HttpClient *httpClient = [HttpClient httpClientWithDelegate:self];
     [httpClient loginWithUser:userName.text pwd:passWord.text];
 }

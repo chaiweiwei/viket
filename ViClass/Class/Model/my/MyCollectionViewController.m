@@ -147,7 +147,7 @@
     size.text =[NSString stringWithFormat:@"类型：%@",[at.type intValue]==3?@"视频":@"文档"];
     
     UILabel *num = (UILabel *)[cell viewWithTag:0x104];
-    num.text = [NSString stringWithFormat:@"时间：%@",bean.createTime];
+    num.text = [NSString stringWithFormat:@"时间：%@",[ALDUtils delRealTimeData:bean.createTime]];
 
     return cell;
 

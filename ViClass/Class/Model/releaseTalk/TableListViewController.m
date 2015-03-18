@@ -390,7 +390,7 @@
     if([at.type intValue] == 3)
     {//视频
         ShowViewController *controller = [[ShowViewController alloc] init];
-        controller.title = @"播放中";
+        controller.title = @"章节详情";
         controller.chapterId = cb.sid;
         controller.url = [self chineseToUTf8Str:at.url];
         controller.toController = 2;

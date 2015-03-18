@@ -247,7 +247,7 @@
     [self.scroller addSubview:line];
     
     btn = [self createCellView:CGRectMake(0, line.bottom, viewWidth, 44) title:@"设置" tag:0x0010];
-    [self.scroller addSubview:btn];
+    //[self.scroller addSubview:btn];
     
     UIButton *logoutBtn = [UIButton buttonWithType:UIButtonTypeCustom];
     logoutBtn.frame = CGRectMake(15, btn.bottom+25, viewWidth-30, 45);
