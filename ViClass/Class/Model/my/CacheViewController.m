@@ -239,8 +239,6 @@
     switch (buttonIndex) {
         case 0://确定
         {
-            NSLog(@"删除全部");
-            
             //缓存删除
             if(self.type == 1)
             {

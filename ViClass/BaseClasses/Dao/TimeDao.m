@@ -92,7 +92,7 @@
     NSMutableArray *result=[NSMutableArray array];
     FMResultSet *rs=[self query:@"*" whereCaluse:@"uid=? order by time desc" selectionArgs:params];
     
-    while([rs next]){ //sid Varchar(20) PRIMARY KEY,classId Varchar(20),uid Varchar(20),name Varchar(60),url Varchar(60),type ,createTime Varchar(30),count Integer
+    while([rs next]){
         TimeBean *bean = [[TimeBean alloc] init];
         bean.time=[rs stringForColumn:@"time"];
         bean.month= [rs longForColumn:@"month"];

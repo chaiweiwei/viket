@@ -519,7 +519,7 @@
         [self.navigationController pushViewController:controller animated:YES];
     }
     else if([at.type intValue] == 4)
-    {
+    {//文档
         BaseViewDocViewController *controller = [[BaseViewDocViewController alloc] init];
         controller.docUrl=[self chineseToUTf8Str:at.url];
         controller.docName=bean.name;

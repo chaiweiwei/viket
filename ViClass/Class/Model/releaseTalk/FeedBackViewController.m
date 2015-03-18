@@ -26,7 +26,7 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    [super viewDidLoad];
+
     _isWebViewLoaded=NO;
     
     CGRect frame=self.view.frame;

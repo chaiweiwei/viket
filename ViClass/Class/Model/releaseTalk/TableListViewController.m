@@ -136,7 +136,7 @@
                 i++;
             }
 
-            UIActionSheet *action = [[UIActionSheet alloc] initWithTitle:@"取消改课程的报名" delegate:self cancelButtonTitle:@"取消" destructiveButtonTitle:nil otherButtonTitles:@"确定", nil];
+            UIActionSheet *action = [[UIActionSheet alloc] initWithTitle:@"取消课程的报名" delegate:self cancelButtonTitle:@"取消" destructiveButtonTitle:nil otherButtonTitles:@"确定", nil];
             action.tag = 0x3000+i;
             [action showInView:self.view];
             
