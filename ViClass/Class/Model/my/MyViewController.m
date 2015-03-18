@@ -76,6 +76,27 @@
 }
 -(void)initUI
 {
+    //没有网络
+    if(!_ub)
+    {
+        _ub = [[UserBean alloc] init];
+        
+        NSUserDefaults *config = [NSUserDefaults standardUserDefaults];
+        
+        UserInfoBean *userInfo = [[UserInfoBean alloc] init];
+        userInfo.avatar = [config objectForKey:KIconKey];
+        userInfo.nickname = [config objectForKey:KNickNameKey];
+        _ub.userInfo = userInfo;
+        
+        UserBehaviourBean *userBeha = [[UserBehaviourBean alloc] init];
+        userBeha.integralCount = [NSNumber numberWithInt:0];
+        userBeha.commentCount = [NSNumber numberWithInt:0];
+        _ub.userBehaviour = userBeha;
+        
+        NSDictionary *exert = [NSDictionary dictionaryWithObject:@"0" forKey:@"ranking"];
+        _ub.extra = exert;
+        
+    }
     UserInfoBean *ib = _ub.userInfo;
     UserBehaviourBean *ub = _ub.userBehaviour;
     
@@ -114,7 +135,7 @@
         tag.frame = CGRectMake(icon.right-75/3.f-3, icon.bottom-75/3.f-3, 75/3.f, 75/3.f);
         tag.image = [UIImage imageNamed:@"icon_female@3x"];
     }
-    [bgImgView addSubview:tag];
+    //[bgImgView addSubview:tag];
     
     //名称
     UILabel *name = [[UILabel alloc] initWithFrame:CGRectMake(icon.right+10, 52, viewWidth-111, 15)];
@@ -448,6 +469,11 @@
                 [httpClient getUnReadUserNewsCount];
                 //[self initUI];
             }
+        }
+        else
+        {
+            [ALDUtils showToast:result.errorMsg];
+            [self initUI];
         }
     }else if(requestPath == HttpRequestPathForUserNewsUnread)
     {
