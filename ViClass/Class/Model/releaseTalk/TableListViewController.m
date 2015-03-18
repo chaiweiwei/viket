@@ -403,7 +403,7 @@
         controller.docName=bean.name;
         controller.fileType = [at.url pathExtension];
         controller.docSize=[at.size longValue];
-        controller.title=@"下载";
+        controller.title=@"文档详情";
         controller.type = FinishStyleWithSave;
         [self.navigationController pushViewController:controller animated:YES];
         

@@ -144,6 +144,10 @@
     {
         [ALDUtils showToast:@"密码不能为空"];
         return;
+    }else if (passWord.text.length<6)
+    {
+        [ALDUtils showToast:@"密码长度6位以上"];
+        return;
     }
     if(self.type)
     {
