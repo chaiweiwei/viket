@@ -98,6 +98,9 @@
     //昵称
     CGSize size = [ALDUtils captureTextSizeWithText:@"昵  称" textWidth:200 font:KFontSizeBold32px];
     UILabel *name = [[UILabel alloc] initWithFrame:CGRectMake(viewWidth + 50, 80, size.width,  35)];
+    if(viewWidth == 414)
+        name.frame = CGRectMake(viewWidth + 100, 80, size.width,  35);
+    
     name.text = @"昵  称";
     name.textAlignment = TEXT_ALIGN_CENTER;
     name.font = KFontSizeBold32px;
@@ -148,6 +151,9 @@
     
     _popuItems = [NSArray arrayWithObjects:bean1,bean2,bean3, nil];
     name = [[UILabel alloc] initWithFrame:CGRectMake(viewWidth*2 + 50, 80, size.width,  35)];
+    if(viewWidth == 414)
+        name.frame = CGRectMake(viewWidth*2 + 100, 80, size.width,  35);
+    
     name.text = @"身  份";
     name.textAlignment = TEXT_ALIGN_CENTER;
     name.font = KFontSizeBold32px;
