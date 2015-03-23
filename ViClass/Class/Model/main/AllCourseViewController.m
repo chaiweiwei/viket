@@ -294,7 +294,7 @@
         label.tag = 0x0014;
         [cell addSubview:label];
 
-        UIView *line = [[UIView alloc] initWithFrame:CGRectMake(16, 109, cell.width-30, 1)];
+        UIView *line = [[UIView alloc] initWithFrame:CGRectMake(16, 109, cellView-30, 1)];
         line.backgroundColor = [UIColor lightGrayColor];
         [cell addSubview:line];
         
