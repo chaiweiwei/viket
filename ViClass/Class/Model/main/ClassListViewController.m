@@ -343,7 +343,7 @@
         btnView.tag = TAG_VIEW_BGVIEW;
         [cell addSubview:btnView];
         
-        ProgressIndicator *progress = [[ProgressIndicator alloc] initWithFrame:CGRectMake(0, 0, CGRectGetWidth(cell.frame), 15)];
+        ProgressIndicator *progress = [[ProgressIndicator alloc] initWithFrame:CGRectMake(0, 0, cellWidth, 15)];
         progress.tag = TAG_BTN_PROGRESS;
         [btnView addSubview:progress];
         

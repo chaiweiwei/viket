@@ -393,6 +393,9 @@
     
     //说说按钮
     ALDButton *button = [self createButton:CGRectMake((viewWidth - 100/2.f)/2.f, 10, 100/2.f, 100/2.f) title:@"课表" textColor:RGBCOLOR(255, 255, 255) textFont:kFontSize28px];
+    if (viewHeight == 736) {
+        button.frame = CGRectMake((viewWidth - 100/2.f)/2.f, 13, 100/2.f, 100/2.f);
+    }
     button.tag = 0x0010;
     button.backgroundColor = [UIColor redColor];
    //    [button setBackgroundImage:[UIImage imageNamed:@"icon_microphone"] forState:UIControlStateNormal];
