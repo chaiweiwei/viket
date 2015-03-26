@@ -2305,7 +2305,7 @@
 				ORGANIZATIONNAME = chaiweiwei;
 				TargetAttributes = {
 					38B399121A7E2EA2003C8C3E = {
-						DevelopmentTeam = VA5B5K42Y2;
+						DevelopmentTeam = TQ9SH2L35G;
 					};
 					38B399331A7E2EA2003C8C3E = {
 						TestTargetID = 38B399121A7E2EA2003C8C3E;
@@ -2871,8 +2871,8 @@
 			baseConfigurationReference = 6DB1C20AEFEA02FF6E46ED3B /* Pods.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "iPhone Distribution: Hangzhou Alidao Technology Co., Ltd.";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution: Hangzhou Alidao Technology Co., Ltd.";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/ViClass/BaseClasses/OpenApi/QQ",
@@ -2911,8 +2911,8 @@
 			baseConfigurationReference = 6A8D8168DDC7DF18D3843F03 /* Pods.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "iPhone Distribution: Hangzhou Alidao Technology Co., Ltd.";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution: Hangzhou Alidao Technology Co., Ltd.";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/ViClass/BaseClasses/OpenApi/QQ",
