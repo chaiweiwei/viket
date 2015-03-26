@@ -282,7 +282,7 @@
         UIView *grayView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, viewWidth, 15)];
         grayView.backgroundColor = KTableViewBackgroundColor;
         [cell addSubview:grayView];
-        
+               
         ALDImageView *icon = [[ALDImageView alloc] initWithFrame:CGRectMake(0, grayView.bottom, viewWidth, 80)];
         if (viewWidth == 414) {
             icon.frame = CGRectMake(0, grayView.bottom, viewWidth, 312/3.f);
@@ -343,7 +343,7 @@
         btnView.tag = TAG_VIEW_BGVIEW;
         [cell addSubview:btnView];
         
-        ProgressIndicator *progress = [[ProgressIndicator alloc] initWithFrame:CGRectMake(0, 0, CGRectGetWidth(cell.frame), 15)];
+        ProgressIndicator *progress = [[ProgressIndicator alloc] initWithFrame:CGRectMake(0, 0, cellWidth, 15)];
         progress.tag = TAG_BTN_PROGRESS;
         [btnView addSubview:progress];
         
@@ -369,7 +369,7 @@
         
         UIView *line = [[UIView alloc] initWithFrame:CGRectMake(0, 144, viewWidth, 1)];
         line.backgroundColor = RGBACOLOR(242, 242, 242, 1);
-        [cell addSubview:line];
+        //[cell addSubview:line];
         
         cell.tag = indexPath.row + 0x200;
     }
@@ -501,7 +501,14 @@
 
 - (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
 {
-    return 145;
+    CGFloat height = 65;
+    
+    if(self.view.frame.size.width == 414)
+        height += 312/3.f;
+    else
+        height += 80;
+    return height;
+    
 }
 -(void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
 {
